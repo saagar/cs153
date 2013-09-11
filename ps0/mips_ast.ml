@@ -46,7 +46,20 @@ let reg2ind r =
   | R20 -> 20 | R21 -> 21 | R22 -> 22 | R23 -> 23
   | R24 -> 24 | R25 -> 25 | R26 -> 26 | R27 -> 27
   | R28 -> 28 | R29 -> 29 | R30 -> 30 | R31 -> 31
- 
+
+(* convert int32 into register *)
+let ind2reg i =
+  match i with
+    0 -> R0 | 1 -> R1 | 2 -> R2 | 3 -> R3
+  | 4 -> R4 | 5 -> R5 | 6 -> R6 | 7 -> R7
+  | 8 -> R8 | 9 -> R9 | 10 -> R10 | 11 -> R11
+  | 12 -> R12 | 13 -> R13 | 14 -> R14 | 15 -> R15
+  | 16 -> R16 | 17 -> R17 | 18 -> R18 | 19 -> R19
+  | 20 -> R20 | 21 -> R21 | 22 -> R22 | 23 -> R23
+  | 24 -> R24 | 25 -> R25 | 26 -> R26 | 27 -> R27
+  | 28 -> R28 | 29 -> R29 | 30 -> R30 | 31 -> R31
+
+
 (* A small subset of the Mips assembly language *)
 type inst =
   Add of reg * reg * reg  
@@ -119,3 +132,26 @@ let inst2bin (i:inst) : int32 =
      let fields = [offset16; shift_left rt32 16; shift_left rs32 21; shift_left (of_int 0x2b) 26] in
      List.fold_left Int32.logor Int32.zero fields)
   | Li(_,_) -> raise CantTranslateError
+
+(* retrieve the opcode, first 6 bits of instruction *)
+let retrieve_opcode (bin32: int32) : int32 =
+  (shift_right_logical bin32 26)
+
+(* retrieve the 2nd opcode, the last 6 bits, only used for R type instructions.
+ * CS 141! *)
+let retrieve_2nd_opcode (bin32: int32) : int32 =
+  Int32.logand 0x0000003Fl bin32
+
+(* get the RS register *)
+let get_reg_rs (bin32: int32) : reg =
+  ind2reg (Int32.logand 0x0000001Fl (shift_right_logical bin32 21))
+ 
+(* get the RT register *)
+let get_reg_rt (bin32: int32) : reg =
+  ind2reg (Int32.logand 0x0000001Fl (shift_right_logical bin32 16))
+
+(* get the RD register *)
+let get_reg_rd (bin32: int32) : reg =
+  ind2reg (Int32.logand 0x0000001Fl (shift_right_logical bin32 11))
+
+

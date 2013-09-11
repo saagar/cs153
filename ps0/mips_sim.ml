@@ -3,6 +3,7 @@ open Byte
 
 exception TODO
 exception FatalError
+exception BadInstruction
 
 (* Register file definitions. A register file is a map from a register 
    number to a 32-bit quantity. *)
@@ -32,14 +33,16 @@ let string_of_mem (m : memory) : string =
 (* State *)
 type state = { r : regfile; pc : int32; m : memory }
 
+(* Helpers to get bytes from 32 bit *)
+let first_byte (x:int32) : byte = mk_byte (Int32.shift_right x 24)
+let second_byte (x:int32) : byte = mk_byte (Int32.shift_right x 16)
+let third_byte (x:int32) : byte = mk_byte (Int32.shift_right x 8)
+let fourth_byte (x:int32) : byte = mk_byte x
+
 (* Map a program, a list of Mips assembly instructions, down to a starting 
    state. You can start the PC at any address you wish. Just make sure that 
    you put the generated machine code where you started the PC in memory! *)
 let rec assem (prog : program) : state =
-  let first_byte (x:int32) : byte = mk_byte (Int32.shift_right x 24) in
-  let second_byte (x:int32) : byte = mk_byte (Int32.shift_right x 16) in
-  let third_byte (x:int32) : byte = mk_byte (Int32.shift_right x 8) in
-  let fourth_byte (x:int32) : byte = mk_byte x in
   let one = Int32.one in
   let two = Int32.add one one in
   let three = Int32.add one two in
@@ -63,6 +66,22 @@ let rec assem (prog : program) : state =
       let new_mem = load_inst (inst2bin inst) loc mem in
       assem_helper rest (Int32.add four loc) new_mem) in
   { r = empty_rf; pc = four; m = assem_helper prog four empty_mem }
+
+let disassemble (bin : int32) : inst =
+  match (retrieve_opcode bin) with
+    0x00l -> (match (retrieve_2nd_opcode bin) with
+                | 0x08l -> Jr()
+                | 0x20l -> Add()
+                | _ -> raise BadInstruction 
+              )
+    | 0x03l -> Jal()
+    | 0x04l -> Beq()
+    | 0x0dl -> Ori()
+    | 0x0fl -> Lui()
+    | 0x23l -> Lw()
+    | 0x2bl -> Sw()
+    | _ -> raise BadInstruction
+  
 
 (* Given a starting state, simulate the Mips machine code to get a final state *)
 let rec interp (init_state : state) : state =
