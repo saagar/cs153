@@ -58,3 +58,45 @@ type inst =
 | Sw of reg * reg * int32  (* and here ... *)
 
 type program = inst list
+
+let first_byte (x:int32) : byte =
+  mk_byte (shift_right x 24)
+
+let second_byte (x:int32) : byte =
+  mk_byte (shift_right x 16)
+
+let third_byte (x:int32) : byte =
+  mk_byte (shift_right x 8)
+
+let fourth_byte (x:int32) : byte =
+  mk_byte x
+
+let zero_top_sixteen_bits (x:int32) : int32 =
+  Int32.logand 0x0000FFFFl x
+
+let zero_top_six_bits (x:int32) : int32 =
+  Int32.logand 0x03FFFFFFl x
+
+let inst2bin (i:inst) : int32 =
+  match i with
+    Add(rd, rs, rt) ->
+      (let rd32 = of_int (reg2ind rd) in
+       let rs32 = of_int (reg2ind rs) in
+       let rt32 = of_int (reg2ind rt) in
+       let fields = [of_int 0x20; shift_left rd32 11; shift_left rt32 16; shift_left rs32 21] in
+       List.fold_left Int32.logor Int32.zero fields)
+  | Beq(rs, rt, offset) ->
+    (let rs32 = of_int (reg2ind rs) in
+     let rt32 = of_int (reg2ind rt) in
+     let offset16 = zero_top_sixteen_bits offset in
+     let fields = [offset16; shift_left rt32 16; shift_left rs32 21; shift_left (of_int 4) 26] in
+     List.fold_left Int32.logor Int32.zero fields)
+  | Jr(rs) ->
+    (let rs32 = of_int (reg2ind rs) in
+     let fields = [of_int 8; shift_left rs32 21] in
+     List.fold_left Int32.logor Int32.zero fields)
+  | Jal(target) ->
+    (let target26 = zero_top_six_bits target in
+     let fields = [target26; shift_left (of_int 3) 26] in
+     List.fold_left Int32.logor Int32.zero fields)
+  | 

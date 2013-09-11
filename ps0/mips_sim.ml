@@ -35,7 +35,23 @@ type state = { r : regfile; pc : int32; m : memory }
 (* Map a program, a list of Mips assembly instructions, down to a starting 
    state. You can start the PC at any address you wish. Just make sure that 
    you put the generated machine code where you started the PC in memory! *)
-let rec assem (prog : program) : state = raise TODO
+let rec assem (prog : program) : state =
+  let one = Int32.one in
+  let two = Int32.add one one in
+  let three = Int32.add one two in
+  let four = Int32.add one three in
+  let load_inst (bin_inst : int32) (loc : int32) (mem : memory) : memory =
+    let m1 = mem_update loc (first_byte bin_inst) mem in
+    let m2 = mem_update (Int32.add one loc) (second_byte bin_inst) m1 in
+    let m3 = mem_update (Int32.add two loc) (third_byte bin_inst) m2 in
+    mem_update (Int32.add three loc) (fourth_byte bin_inst) m3 in
+  let rec assem_helper (remaining_prog : inst list) (loc : int32) (mem : memory) : memory =
+    match remaining_prog with
+      [] -> mem
+    | inst::rest ->
+      let new_mem = load_inst (inst2bin inst) loc mem in
+      assem_helper rest (Int32.add four loc) new_mem in
+  { r = empty_rf; pc = four; m = assem_helper prog four empty_mem }
 
 (* Given a starting state, simulate the Mips machine code to get a final state *)
 let rec interp (init_state : state) : state = raise TODO
