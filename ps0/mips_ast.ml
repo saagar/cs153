@@ -77,6 +77,9 @@ let zero_top_sixteen_bits (x:int32) : int32 =
 let zero_top_six_bits (x:int32) : int32 =
   Int32.logand 0x03FFFFFFl x
 
+let grab_top_sixteen_bits (x:int32) : int32 =
+  shift_right_logical x 16
+
 let inst2bin (i:inst) : int32 =
   match i with
     Add(rd, rs, rt) ->

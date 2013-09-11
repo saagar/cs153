@@ -46,11 +46,16 @@ let rec assem (prog : program) : state =
     let m3 = mem_update (Int32.add two loc) (third_byte bin_inst) m2 in
     mem_update (Int32.add three loc) (fourth_byte bin_inst) m3 in
   let rec assem_helper (remaining_prog : inst list) (loc : int32) (mem : memory) : memory =
-    match remaining_prog with
+    (match remaining_prog with
       [] -> mem
+    | Li(rd, imm) :: rest ->
+      let eight = Int32.add four four in
+      let new_mem_1 = load_inst (inst2bin Lui(rd, grab_top_sixteen_bits imm)) loc mem in
+      let new_mem_2 = load_inst (inst2bin Ori(rd, rd, zero_top_sixteen_bits imm)) (Int32.add four loc) new_mem_1 in
+      assem_helper rest (Int32.add eight loc) new_mem_2
     | inst::rest ->
       let new_mem = load_inst (inst2bin inst) loc mem in
-      assem_helper rest (Int32.add four loc) new_mem in
+      assem_helper rest (Int32.add four loc) new_mem) in
   { r = empty_rf; pc = four; m = assem_helper prog four empty_mem }
 
 (* Given a starting state, simulate the Mips machine code to get a final state *)
