@@ -61,17 +61,8 @@ type inst =
 
 type program = inst list
 
-let first_byte (x:int32) : Byte.byte =
-  mk_byte (shift_right x 24)
-
-let second_byte (x:int32) : Byte.byte =
-  mk_byte (shift_right x 16)
-
-let third_byte (x:int32) : Byte.byte =
-  mk_byte (shift_right x 8)
-
-let fourth_byte (x:int32) : Byte.byte =
-  mk_byte x
+let zero_top_24_bits (x:int32) : int32 =
+  Int32.logand 0x000000FFl x
 
 let zero_top_sixteen_bits (x:int32) : int32 =
   Int32.logand 0x0000FFFFl x

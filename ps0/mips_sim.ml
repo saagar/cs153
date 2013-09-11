@@ -36,6 +36,10 @@ type state = { r : regfile; pc : int32; m : memory }
    state. You can start the PC at any address you wish. Just make sure that 
    you put the generated machine code where you started the PC in memory! *)
 let rec assem (prog : program) : state =
+  let first_byte (x:int32) : byte = mk_byte (Int32.shift_right x 24) in
+  let second_byte (x:int32) : byte = mk_byte (Int32.shift_right x 16) in
+  let third_byte (x:int32) : byte = mk_byte (Int32.shift_right x 8) in
+  let fourth_byte (x:int32) : byte = mk_byte x in
   let one = Int32.one in
   let two = Int32.add one one in
   let three = Int32.add one two in
@@ -50,8 +54,10 @@ let rec assem (prog : program) : state =
       [] -> mem
     | Li(rd, imm) :: rest ->
       let eight = Int32.add four four in
-      let new_mem_1 = load_inst (inst2bin Lui(rd, grab_top_sixteen_bits imm)) loc mem in
-      let new_mem_2 = load_inst (inst2bin Ori(rd, rd, zero_top_sixteen_bits imm)) (Int32.add four loc) new_mem_1 in
+      let lui = Lui(rd, grab_top_sixteen_bits imm) in
+      let ori = Ori(rd, rd, zero_top_sixteen_bits imm) in
+      let new_mem_1 = load_inst (inst2bin lui) loc mem in
+      let new_mem_2 = load_inst (inst2bin ori) (Int32.add four loc) new_mem_1 in
       assem_helper rest (Int32.add eight loc) new_mem_2
     | inst::rest ->
       let new_mem = load_inst (inst2bin inst) loc mem in
@@ -59,4 +65,5 @@ let rec assem (prog : program) : state =
   { r = empty_rf; pc = four; m = assem_helper prog four empty_mem }
 
 (* Given a starting state, simulate the Mips machine code to get a final state *)
-let rec interp (init_state : state) : state = raise TODO
+let rec interp (init_state : state) : state =
+  init_state
