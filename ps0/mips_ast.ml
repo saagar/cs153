@@ -1,5 +1,9 @@
 open Int32
 
+open Byte
+
+exception CantTranslateError
+
 type label = string
 
 type reg = R0 
@@ -102,4 +106,39 @@ let inst2bin (i:inst) : int32 =
     (let target26 = zero_top_six_bits target in
      let fields = [target26; shift_left (of_int 3) 26] in
      List.fold_left Int32.logor Int32.zero fields)
-  | 
+  | Lui(rt, imm) ->
+      (let imm16 = zero_top_sixteen_bits imm in
+       let rt32 = of_int (reg2ind rt) in
+       let fields = [imm16; shift_left rt32 16; shift_left (of_int 0xF) 26] in
+       List.fold_left Int32.logor Int32.zero fields)
+  | Ori(rt, rs, imm) ->
+      (let imm16 = zero_top_sixteen_bits imm in
+       let rt32 = of_int (reg2ind rt) in
+       let rs32 = of_int (reg2ind rs) in
+       let fields = [imm16; shift_left rt32 16; shift_left rs32 21; 
+                     shift_left (of_int 0xD) 26] in
+       List.fold_left Int32.logor Int32.zero fields)
+  | Lw(rt, rs, offset) ->
+      (let offset16 = zero_top_sixteen_bits offset in
+        let rt32 = of_int (reg2ind rt) in
+        let rs32 = of_int (reg2ind rs) in
+        let fields = [offset16; shift_left rt32 16; shift_left rs32 21;
+        shift_left (of_int 0x31) 26] in
+        List.fold_left Int32.logor Int32.zero fields)
+  | Sw(rt, rs, offset) ->
+      (let offset16 = zero_top_sixteen_bits offset in
+        let rt32 = of_int (reg2ind rt) in
+        let rs32 = of_int (reg2ind rs) in
+        let fields = [offset16; shift_left rt32 16; shift_left rs32 21;
+                 shift_left (of_int 0x2b) 26] in
+        List.fold_left Int32.logor Int32.zero fields)
+  | Li(_,_) -> Raise CantTranslateError
+
+
+
+
+
+
+
+
+
