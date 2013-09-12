@@ -89,6 +89,30 @@ let disassemble (bin : int32) : inst =
     | _ -> raise BadInstruction
   
 
+let execute_inst (current_state : state) : state =
+  let first_inst_byte = mem_lookup current_state.pc current_state.m in
+  let second_inst_byte = mem_lookup (Int32.add current_state.pc (from_int 1)) current_state.m in
+  let third_inst_byte = mem_lookup (Int32.add current_state.pc (from_int 2)) current_state.m in
+  let fourth_inst_byte = mem_lookup (Int32.add current_state.pc (from_int 3)) current_state.m in
+  let inst32 = int32_from_bytes first_inst_byte second_inst_byte third_inst_byte fourth_inst_byte in
+  match disassemble inst32 with
+    Add(rd, rs, rt) -> execute_add rd rs rt current_state
+  | Beq(rs, rt, offset) ->
+  | Jr(rs) ->
+  | Jal(target) ->
+  | Lui(rt, imm) ->
+  | Ori(rt, rs, imm) ->
+  | Lw(rt, rs, offset) ->
+  | Sw(rt, rs, offset) ->
+  | Li(_,_) -> raise CantTranslateError
+
+let execute_add rd rs rt current_state : state =
+  let rs32 = rf_lookup (reg2ind rs) current_state.r in
+  let rt32 = rf_lookup (reg2ind rt) current_state.r in
+  let sum = Int32.add rs32 rt32 in
+  let new_rf = rf_update (reg2ind rd) sum current_state.r in
+  { r = new_rf; pc = Int32.add current_state.pc (from_int 4); m = current_state.m }
+
 (* Given a starting state, simulate the Mips machine code to get a final state *)
 let rec interp (init_state : state) : state =
   init_state
