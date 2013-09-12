@@ -49,7 +49,7 @@ let reg2ind r =
 
 (* convert int32 into register *)
 let ind2reg i =
-  match i with
+  match to_int i with
     0 -> R0 | 1 -> R1 | 2 -> R2 | 3 -> R3
   | 4 -> R4 | 5 -> R5 | 6 -> R6 | 7 -> R7
   | 8 -> R8 | 9 -> R9 | 10 -> R10 | 11 -> R11
@@ -58,7 +58,7 @@ let ind2reg i =
   | 20 -> R20 | 21 -> R21 | 22 -> R22 | 23 -> R23
   | 24 -> R24 | 25 -> R25 | 26 -> R26 | 27 -> R27
   | 28 -> R28 | 29 -> R29 | 30 -> R30 | 31 -> R31
-
+  | _ -> R0
 
 (* A small subset of the Mips assembly language *)
 type inst =

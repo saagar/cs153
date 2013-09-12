@@ -39,6 +39,10 @@ let second_byte (x:int32) : byte = mk_byte (Int32.shift_right x 16)
 let third_byte (x:int32) : byte = mk_byte (Int32.shift_right x 8)
 let fourth_byte (x:int32) : byte = mk_byte x
 
+(* Helper to get int32 from four bytes *)
+let int32_from_bytes (byte1:byte) (byte2:byte) (byte3:byte) (byte4:byte) : int32 =
+  List.fold_left Int32.logor Int32.zero [shift_left byte1.b 24; shift_left byte2.b 16; shift_left byte3.b 8; byte4.b]
+
 (* Map a program, a list of Mips assembly instructions, down to a starting 
    state. You can start the PC at any address you wish. Just make sure that 
    you put the generated machine code where you started the PC in memory! *)
@@ -77,7 +81,7 @@ let disassemble (bin : int32) : inst =
               )
     | 0x03l -> Jal((zero_top_six_bits bin))
     | 0x04l -> Beq((get_reg_rs bin), (get_reg_rt bin),(zero_top_sixteen_bits bin))
-    | 0x0dl -> Ori((get_reg_rs bin), (get_reg_rt bin),(zero_top_sixteen_bits
+    | 0x0dl -> Ori((get_reg_rt bin), (get_reg_rs bin),(zero_top_sixteen_bits
     bin))
     | 0x0fl -> Lui((get_reg_rt bin),(zero_top_sixteen_bits bin))
     | 0x23l -> Lw((get_reg_rt bin),(get_reg_rs bin),(zero_top_sixteen_bits bin))
