@@ -75,8 +75,7 @@ let disassemble (bin : int32) : inst =
   match (retrieve_opcode bin) with
     0x00l -> (match (retrieve_2nd_opcode bin) with
                 | 0x08l -> Jr(get_reg_rs bin)
-                | 0x20l -> Add((get_reg_rd bin),(get_reg_rs bin),(get_reg_rt
-                bin))
+                | 0x20l -> Add((get_reg_rd bin),(get_reg_rs bin),(get_reg_rt bin))
                 | _ -> raise BadInstruction 
               )
     | 0x03l -> Jal((zero_top_six_bits bin))
@@ -97,13 +96,13 @@ let execute_inst (current_state : state) : state =
   let inst32 = int32_from_bytes first_inst_byte second_inst_byte third_inst_byte fourth_inst_byte in
   match disassemble inst32 with
     Add(rd, rs, rt) -> execute_add rd rs rt current_state
-  | Beq(rs, rt, offset) ->
-  | Jr(rs) ->
-  | Jal(target) ->
-  | Lui(rt, imm) ->
-  | Ori(rt, rs, imm) ->
-  | Lw(rt, rs, offset) ->
-  | Sw(rt, rs, offset) ->
+  | Beq(rs, rt, offset) -> execute_beq rs rt offset current_state
+  | Jr(rs) -> execute_jr rs current_state
+  | Jal(target) -> execute_jal target current_state
+  | Lui(rt, imm) -> execute_lui rt imm current_state
+  | Ori(rt, rs, imm) -> execute_ori rt rs imm current_state
+  | Lw(rt, rs, offset) -> execute_lw rt rs offset current_state
+  | Sw(rt, rs, offset) -> execute_sw rt rs offset current_state
   | Li(_,_) -> raise CantTranslateError
 
 let execute_add rd rs rt current_state : state =
@@ -113,6 +112,61 @@ let execute_add rd rs rt current_state : state =
   let new_rf = rf_update (reg2ind rd) sum current_state.r in
   { r = new_rf; pc = Int32.add current_state.pc (from_int 4); m = current_state.m }
 
+let execute_beq rs rt offset current_state : state =
+  let rs32 = rf_lookup (reg2ind rs) current_state.r in
+  let rt32 = rf_lookup (reg2ind rt) current_state.r in
+  let amount_to_advance_pc = if (to_int rs32 = to_int rt32) then offset else from_int 4 in
+  { r = current_state.r; pc = Int32.add current_state.pc amount_to_advance_pc; m = current_state.m }
+
+let execute_jr rs current_state : state =
+  let rs32 = rf_lookup (reg2ind rs) current_state.r in
+  { r = current_state.r; pc = rs32; m = current_state.m }
+
+let execute_jal target current_state : state =
+  let next_inst_addr = Int32.add current_state.pc (from_int 4) in
+  let new_rf = rf_update 31 next_inst_addr current_state.r in
+  { r = new_rf; pc = target; m = current_state.m }
+
+let execute_lui rt imm current_state : state =
+  let new_rf = rf_update (reg2ind rt) (Int32.shift_left imm 16) current_state.r in
+  { r = new_rf; pc = Int32.add current_state.pc (from_int 4); m = current_state.m }
+
+let execute_ori rt rs imm current_state : state =
+  let rs32 = rf_lookup (reg2ind rs) current_state.r in
+  let new_rf = rf_update (reg2ind rt) (Int32.logor imm rs32) current_state.r in
+  { r = new_rf; pc = Int32.add current_state.pc (from_int 4); m = current_state.m }
+
+let execute_lw (rt : reg) (rs : reg) (offset : int32) (current_state : state) : state =
+  let target_address = (Int32.add (rf_lookup (reg2ind rs) current_state.r) offset) in
+  let byte1 = mem_lookup target_address current_state.m in
+  let byte2 = mem_lookup (Int32.add target_address (from_int 1)) current_state.m in
+  let byte3 = mem_lookup (Int32.add target_address (from_int 2)) current_state.m in
+  let byte4 = mem_lookup (Int32.add target_address (from_int 3)) current_state.m in
+  let word = int32_from_bytes byte1 byte2 byte3 byte4 in
+  let new_rf = rf_update (reg2ind rt) word current_state.r in
+  { r = new_rf; pc = Int32.add current_state.pc (from_int 4); m = current_state.m }
+
+let execute_sw (rt : reg) (rs : reg) (offset : int32) (current_state : state) : state =
+  let target_address = (Int32.add (rf_lookup (reg2ind rs) current_state.r) offset) in
+  let value32 = rf_lookup (reg2ind rt) current_state.r in
+  let byte1 = first_byte value32 in
+  let byte2 = second_byte value32 in
+  let byte3 = third_byte value32 in
+  let byte4 = fourth_byte value32 in
+  let new_mem = mem_update target_address byte1 current_state.m in
+  let new_mem2 = mem_update (Int32.add target_address (from_int 1)) byte2 new_mem in
+  let new_mem3 = mem_update (Int32.add target_address (from_int 2)) byte3 new_mem in
+  let new_mem4 = mem_update (Int32.add target_address (from_int 3)) byte4 new_mem in
+  { r = current_state.r; pc = Int32.add current_state.pc (fromt_int 4); m = new_mem4 }
+
+
 (* Given a starting state, simulate the Mips machine code to get a final state *)
 let rec interp (init_state : state) : state =
-  init_state
+  let first_inst_byte = mem_lookup init_state.pc init_state.m in
+  let second_inst_byte = mem_lookup (Int32.add init_state.pc (from_int 1)) init_state.m in
+  let third_inst_byte = mem_lookup (Int32.add init_state.pc (from_int 2)) init_state.m in
+  let fourth_inst_byte = mem_lookup (Int32.add init_state.pc (from_int 3)) init_state.m in
+  let inst32 = int32_from_bytes first_inst_byte second_inst_byte third_inst_byte fourth_inst_byte in
+  match to_int inst32 with
+    0 -> init_state
+  | _ -> interp (execute_inst init_state)
