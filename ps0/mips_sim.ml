@@ -70,16 +70,18 @@ let rec assem (prog : program) : state =
 let disassemble (bin : int32) : inst =
   match (retrieve_opcode bin) with
     0x00l -> (match (retrieve_2nd_opcode bin) with
-                | 0x08l -> Jr()
-                | 0x20l -> Add()
+                | 0x08l -> Jr(get_reg_rs bin)
+                | 0x20l -> Add((get_reg_rd bin),(get_reg_rs bin),(get_reg_rt
+                bin))
                 | _ -> raise BadInstruction 
               )
-    | 0x03l -> Jal()
-    | 0x04l -> Beq()
-    | 0x0dl -> Ori()
-    | 0x0fl -> Lui()
-    | 0x23l -> Lw()
-    | 0x2bl -> Sw()
+    | 0x03l -> Jal((zero_top_six_bits bin))
+    | 0x04l -> Beq((get_reg_rs bin), (get_reg_rt bin),(zero_top_sixteen_bits bin))
+    | 0x0dl -> Ori((get_reg_rs bin), (get_reg_rt bin),(zero_top_sixteen_bits
+    bin))
+    | 0x0fl -> Lui((get_reg_rt bin),(zero_top_sixteen_bits bin))
+    | 0x23l -> Lw((get_reg_rt bin),(get_reg_rs bin),(zero_top_sixteen_bits bin))
+    | 0x2bl -> Sw((get_reg_rt bin),(get_reg_rs bin),(zero_top_sixteen_bits bin))
     | _ -> raise BadInstruction
   
 
