@@ -1,7 +1,5 @@
 open Int32
 
-exception CantTranslateError
-
 type label = string
 
 type reg = R0 
@@ -73,85 +71,3 @@ type inst =
 | Sw of reg * reg * int32  (* and here ... *)
 
 type program = inst list
-
-let zero_top_24_bits (x:int32) : int32 =
-  Int32.logand 0x000000FFl x
-
-let zero_top_sixteen_bits (x:int32) : int32 =
-  Int32.logand 0x0000FFFFl x
-
-let zero_top_six_bits (x:int32) : int32 =
-  Int32.logand 0x03FFFFFFl x
-
-let grab_top_sixteen_bits (x:int32) : int32 =
-  shift_right_logical x 16
-
-let inst2bin (i:inst) : int32 =
-  match i with
-    Add(rd, rs, rt) ->
-      (let rd32 = of_int (reg2ind rd) in
-       let rs32 = of_int (reg2ind rs) in
-       let rt32 = of_int (reg2ind rt) in
-       let fields = [of_int 0x20; shift_left rd32 11; shift_left rt32 16; shift_left rs32 21] in
-       List.fold_left Int32.logor Int32.zero fields)
-  | Beq(rs, rt, offset) ->
-    (let rs32 = of_int (reg2ind rs) in
-     let rt32 = of_int (reg2ind rt) in
-     let offset16 = zero_top_sixteen_bits offset in
-     let fields = [offset16; shift_left rt32 16; shift_left rs32 21; shift_left (of_int 4) 26] in
-     List.fold_left Int32.logor Int32.zero fields)
-  | Jr(rs) ->
-    (let rs32 = of_int (reg2ind rs) in
-     let fields = [of_int 8; shift_left rs32 21] in
-     List.fold_left Int32.logor Int32.zero fields)
-  | Jal(target) ->
-    (let target26 = zero_top_six_bits target in
-     let fields = [target26; shift_left (of_int 3) 26] in
-     List.fold_left Int32.logor Int32.zero fields)
-  | Lui(rt, imm) ->
-    (let imm16 = zero_top_sixteen_bits imm in
-     let rt32 = of_int (reg2ind rt) in
-     let fields = [imm16; shift_left rt32 16; shift_left (of_int 0xf) 26] in
-     List.fold_left Int32.logor Int32.zero fields)
-  | Ori(rt, rs, imm) ->
-    (let imm16 = zero_top_sixteen_bits imm in
-     let rt32 = of_int (reg2ind rt) in
-     let rs32 = of_int (reg2ind rs) in
-     let fields = [imm16; shift_left rt32 16; shift_left rs32 21; shift_left (of_int 0xd) 26] in
-     List.fold_left Int32.logor Int32.zero fields)
-  | Lw(rt, rs, offset) ->
-    (let offset16 = zero_top_sixteen_bits offset in
-     let rt32 = of_int (reg2ind rt) in
-     let rs32 = of_int (reg2ind rs) in
-     let fields = [offset16; shift_left rt32 16; shift_left rs32 21; shift_left (of_int 0x23) 26] in
-     List.fold_left Int32.logor Int32.zero fields)
-  | Sw(rt, rs, offset) ->
-    (let offset16 = zero_top_sixteen_bits offset in
-     let rt32 = of_int (reg2ind rt) in
-     let rs32 = of_int (reg2ind rs) in
-     let fields = [offset16; shift_left rt32 16; shift_left rs32 21; shift_left (of_int 0x2b) 26] in
-     List.fold_left Int32.logor Int32.zero fields)
-  | Li(_,_) -> raise CantTranslateError
-
-(* retrieve the opcode, first 6 bits of instruction *)
-let retrieve_opcode (bin32: int32) : int32 =
-  (shift_right_logical bin32 26)
-
-(* retrieve the 2nd opcode, the last 6 bits, only used for R type instructions.
- * CS 141! *)
-let retrieve_2nd_opcode (bin32: int32) : int32 =
-  Int32.logand 0x0000003Fl bin32
-
-(* get the RS register *)
-let get_reg_rs (bin32: int32) : reg =
-  ind2reg (Int32.logand 0x0000001Fl (shift_right_logical bin32 21))
- 
-(* get the RT register *)
-let get_reg_rt (bin32: int32) : reg =
-  ind2reg (Int32.logand 0x0000001Fl (shift_right_logical bin32 16))
-
-(* get the RD register *)
-let get_reg_rd (bin32: int32) : reg =
-  ind2reg (Int32.logand 0x0000001Fl (shift_right_logical bin32 11))
-
-
