@@ -1,5 +1,4 @@
 # Computer Science 153 - Compilers #
-=====
 
 ## CS 153 compilers assignments ##
 ## Fall 2013 ##
