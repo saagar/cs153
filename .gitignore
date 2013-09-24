@@ -9,3 +9,5 @@ ps1.zip
 *.cmo
 *.mli
 
+# ignore the 153 .git for now.
+*.git153
