@@ -3,3 +3,9 @@
 
 # pset zip files
 ps1.zip
+
+# ocaml binary files
+*.cmi
+*.cmo
+*.mli
+
