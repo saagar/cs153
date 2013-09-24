@@ -4,7 +4,7 @@
 # pset zip files
 ps1.zip
 
-# ocaml binary files
+# ocaml temp build files
 *.cmi
 *.cmo
 *.mli
