@@ -61,7 +61,8 @@ let rec tokenize(cs:char list) : token list =
   let all_tokens = [int_parser; ws_parser; comment_parser; 
     plus_parser; minus_parser; times_parser; div_parser;
     lparen_parser; rparen_parser; return_parser; semi_parser;
-    eq_parser; neq_parser] in
+    eq_parser; neq_parser; gt_parser; gte_parser; lt_parser;
+    lte_parser] in
   let eof_parser = map (fun _ -> EOF) eof in
   let p = seq (star (alts all_tokens), eof_parser) in
   match run (p cs) with
