@@ -32,6 +32,7 @@ let rec tokenize(cs:char list) : token list =
   let int_parser = map (fun i -> INT i) integer in
   let and_parser = const_map AND (str "&&") in
   let or_parser = const_map OR (str "||") in
+  let not_parser = const_map NOT (c '!') in
   (* operators *)
   let plus_parser = const_map PLUS (c '+') in
   let minus_parser = const_map MINUS (c '-')  in
@@ -62,7 +63,7 @@ let rec tokenize(cs:char list) : token list =
     plus_parser; minus_parser; times_parser; div_parser;
     lparen_parser; rparen_parser; return_parser; semi_parser;
     eq_parser; neq_parser; gt_parser; gte_parser; lt_parser;
-    lte_parser] in
+    lte_parser; not_parser; and_parser; or_parser] in
   let eof_parser = map (fun _ -> EOF) eof in
   let p = seq (star (alts all_tokens), eof_parser) in
   match run (p cs) with
