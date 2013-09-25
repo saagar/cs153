@@ -1,5 +1,6 @@
 # vim swap files
 *.swp
+*.swo
 
 # pset zip files
 ps1.zip
