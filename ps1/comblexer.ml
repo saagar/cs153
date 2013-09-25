@@ -6,7 +6,7 @@ type token =
     (* types *)
     INT of int | CHAR of string | NOT | AND | OR
     (* operators *)
-  | PLUS | MINUS | MULT | DIV | EQ | NEQ | LT | LTE | GT | GTE | ASSIGN | STAR | SLASH
+  | PLUS | MINUS | TIMES | DIV | EQ | NEQ | LT | LTE | GT | GTE | ASSIGN(* | STAR | SLASH*)
     (* Parens and braces *)
   | LPAREN | RPAREN | LCURLY | RCURLY
     (* non-code critical *)
@@ -35,7 +35,7 @@ let rec tokenize(cs:char list) : token list =
   (* operators *)
   let plus_parser = const_map PLUS (c '+') in
   let minus_parser = const_map MINUS (c '-')  in
-  let mult_parser = const_map MULT (c '*') in
+  let times_parser = const_map TIMES (c '*') in
   let div_parser = const_map DIV (c '/') in
   let eq_parser = const_map EQ (str "==") in
   let neq_parser = const_map NEQ (str "!=") in
@@ -44,8 +44,8 @@ let rec tokenize(cs:char list) : token list =
   let gt_parser = const_map GT (c '>') in
   let gte_parser = const_map GTE (str ">=") in
   (* ASSIGN PARSER?? *)
-  let star_parser = const_map STAR (c '*')  in
-  let slash_parser = const_map SLASH (c '/')  in
+  (*let star_parser = const_map STAR (c '*')  in
+  let slash_parser = const_map SLASH (c '/')  in*)
   (* parens and braces *)
   let lparen_parser = const_map LPAREN (c '(') in
   let rparen_parser = const_map RPAREN (c ')') in
@@ -59,8 +59,9 @@ let rec tokenize(cs:char list) : token list =
   let while_parser = const_map WHILE (str "while") in
   let for_parser = const_map FOR (str "for") in
   let all_tokens = [int_parser; ws_parser; comment_parser; 
-    plus_parser; minus_parser; star_parser; slash_parser;
-    lparen_parser; rparen_parser; return_parser; semi_parser] in
+    plus_parser; minus_parser; times_parser; div_parser;
+    lparen_parser; rparen_parser; return_parser; semi_parser;
+    eq_parser; neq_parser] in
   let eof_parser = map (fun _ -> EOF) eof in
   let p = seq (star (alts all_tokens), eof_parser) in
   match run (p cs) with

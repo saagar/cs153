@@ -6,7 +6,7 @@ open Ast
 
 let dummy_pos : pos = 0
 
-let rec make_exp_parser (():unit) : (token, exp) parser =
+(*let rec make_exp_parser (():unit) : (token, exp) parser =
   let int_parser = satisfy_opt (function INT i -> Some (Int i, dummy_pos) | _ -> None) in
   let sub_parser = seq (satisfy (fun t -> t == LPAREN), 
     lazy_seq (lazy (make_exp_parser ()), lazy (satisfy (fun t -> t == RPAREN)))) in 
@@ -18,7 +18,32 @@ let rec make_exp_parser (():unit) : (token, exp) parser =
 and make_binop_rest (():unit) : (token, (binop * exp)) parser =
   let binop_op_parser = satisfy_opt (function 
     PLUS -> Some Plus | MINUS -> Some Minus | STAR -> Some Times | SLASH -> Some Div | _ -> None) in
-  lazy_seq (lazy binop_op_parser, lazy (make_exp_parser ()))
+  lazy_seq (lazy binop_op_parser, lazy (make_exp_parser ()))*)
+
+let mkbinop = fun (e1, (op, e2)) -> (Binop (e1, op, e2), dummy_pos)
+
+let rec make_aexp_parser () : (token, exp) parser =
+  let int_parser = satisfy_opt (function INT i -> Some (Int i, dummy_pos) | _ -> None) in
+  let sub_parser = seq (satisfy (fun t -> t == LPAREN), 
+    lazy_seq (lazy (make_dexp_parser ()), lazy (satisfy (fun t -> t == RPAREN)))) in 
+  let sub_exp_parser = map (fun (_, (e, _)) -> e) sub_parser in
+  alt (int_parser, sub_exp_parser)
+and make_bexp_parser () : (token, exp) parser =
+  let op_parser = satisfy_opt (function TIMES -> Some Times | DIV -> Some Div | _ -> None) in
+  let helper = lazy_seq (lazy (make_aexp_parser ()), lazy (lazy_seq (lazy op_parser, lazy (make_bexp_parser ())))) in
+  let binop_parser = map mkbinop helper in
+  alt (make_aexp_parser (), binop_parser)
+and make_cexp_parser () : (token, exp) parser =
+  let op_parser = satisfy_opt (function PLUS -> Some Plus | MINUS -> Some Minus | _ -> None) in
+  let helper = lazy_seq (lazy (make_bexp_parser ()), lazy (lazy_seq (lazy op_parser, lazy (make_cexp_parser ())))) in
+  let binop_parser = map mkbinop helper in
+  alt (make_bexp_parser (), binop_parser)
+and make_dexp_parser () : (token, exp) parser =
+  let op_parser = satisfy_opt (function EQ -> Some Eq | NEQ -> Some Neq | _ -> None) in
+  let helper = lazy_seq (lazy (make_cexp_parser ()), lazy (lazy_seq (lazy op_parser, lazy (make_dexp_parser ())))) in
+  let binop_parser = map mkbinop helper in
+  alt (make_cexp_parser (), binop_parser)
+and make_exp_parser () : (token, exp) parser = make_dexp_parser ()
 
 let rec make_stmt_parser (():unit) : (token, stmt) parser =
   let return_parser = seq (satisfy (fun t -> t == RETURN), lazy_seq (lazy (make_exp_parser ()), 
