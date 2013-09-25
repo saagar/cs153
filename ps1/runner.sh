@@ -11,15 +11,12 @@ function runall {
     if [[ ${a[0]} = "Fatal" ]]; then
       echo "boom"
     else
-      ans=`head -$i soln | tail -1`
+      ans=`head -$i solutions | tail -1`
       if [[ $ans = ${a[2]} ]]; then
         echo Test $i passed! answer: ${a[2]}, expected: $ans
       else
         echo FAILED: test $i answer: ${a[2]}, expected: $ans
       fi
-
-      #echo $ans
-      #echo ${a[2]}
     fi
   done
 }
