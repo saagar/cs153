@@ -13,6 +13,8 @@ let parse_error s =
   print_string ("line "^(string_of_int l)^": "^s^"\n") 
 %}
 
+
+
 /* Tells us which non-terminal to start the grammar with. */
 %start program
 
@@ -30,8 +32,11 @@ let parse_error s =
  * build values using this datatype constructor to pass to the parser.
  * You will need to augment this with your own tokens...
  */
+/* SAAGAR TODO - add remaining tokens */
 %token <int> INT 
+%token <string> VAR
 %token EOF
+%token LPAREN RPAREN ASSIGN EQ EOF PLUS MINUS TIMES DIV SEMI
 
 /* Here's where the real grammar starts -- you'll need to add 
  * more rules here... Do not remove the 2%'s!! */
@@ -41,4 +46,5 @@ program:
   stmt EOF { $1 }
 
 stmt :
-  /* empty */ { (Ast.skip, 0) } 
+  /* empty */ /*{ (Ast.skip, 0) } */
+
