@@ -13,9 +13,9 @@ function runall {
     else
       ans=`head -$i solutions | tail -1`
       if [[ $ans = ${a[2]} ]]; then
-        echo Test $i passed! answer: ${a[2]}, expected: $ans
+        echo "[ SUCCESS ]" Test $i passed! answer: ${a[2]}, expected: $ans
       else
-        echo FAILED: test $i answer: ${a[2]}, expected: $ans
+        echo "[ FAILED ]" Test $i answer: ${a[2]}, expected: $ans
       fi
     fi
   done

@@ -53,8 +53,8 @@ let parse_error s =
 %right NOT
 
 /* dangling else solution as per
-	http://stackoverflow.com/questions/1737460
-		/how-to-find-shift-reduce-conflict-in-this-yacc-file
+    http://stackoverflow.com/questions/1737460
+        /how-to-find-shift-reduce-conflict-in-this-yacc-file
 */
 
 %nonassoc LOWER_THAN_ELSE
@@ -68,45 +68,45 @@ program:
   stmt EOF { $1 }
 
 stmt:
-	| controlexp stmt		{ (Ast.Seq($1, $2)), (rhs 1)}
-	| exp SEMI stmt			{ (Ast.Seq((Ast.Exp($1),(rhs 1)), $3)), (rhs 3)}
-	| bstmt					{ ( $1 )}
-/*	| LCURLY RCURLY			{ Ast.skip, 0}*/
-/*	| controlexp */
-/*	| LCURLY stmt RCURLY*/
-/*	| exp SEMI				{}*/
-/*	| RETURN exp SEMI		{ Ast.Return( $2 ), (rhs 1)}*/
-/*	| SEMI					{ Ast.skip, 0}*/
+    | controlexp stmt       { (Ast.Seq($1, $2)), (rhs 1)}
+    | exp SEMI stmt         { (Ast.Seq((Ast.Exp($1),(rhs 1)), $3)), (rhs 3)}
+    | bstmt                 { ( $1 )}
+/*  | LCURLY RCURLY         { Ast.skip, 0}*/
+/*  | controlexp */
+/*  | LCURLY stmt RCURLY*/
+/*  | exp SEMI              {}*/
+/*  | RETURN exp SEMI       { Ast.Return( $2 ), (rhs 1)}*/
+/*  | SEMI                  { Ast.skip, 0}*/
 
 bstmt:
-	| SEMI					{ Ast.skip, 0}
-	| exp SEMI				{ ( Ast.Exp($1),(rhs 1) )}
-	| RETURN exp SEMI		{ ( Ast.Return( $2 ) ), (rhs 1)}
-	| LCURLY stmt RCURLY	{ ( $2 ) }
-	| controlexp			{ ( $1 ) }
-	| LCURLY RCURLY			{ Ast.skip, 0}
+    | SEMI                  { Ast.skip, 0}
+    | exp SEMI              { ( Ast.Exp($1),(rhs 1) )}
+    | RETURN exp SEMI       { ( Ast.Return( $2 ) ), (rhs 1)}
+    | LCURLY stmt RCURLY    { ( $2 ) }
+    | controlexp            { ( $1 ) }
+    | LCURLY RCURLY         { Ast.skip, 0}
 
 controlexp:
-	| FOR LPAREN exp SEMI exp SEMI exp RPAREN bstmt			{ (Ast.For($3, $5, $7, $9)), (rhs 1)}
-	| WHILE LPAREN exp RPAREN bstmt							{ (Ast.While($3, $5)), (rhs 1) }
-	| IF LPAREN exp RPAREN bstmt %prec LOWER_THAN_ELSE		{ (Ast.If($3, $5,
+    | FOR LPAREN exp SEMI exp SEMI exp RPAREN bstmt         { (Ast.For($3, $5, $7, $9)), (rhs 1)}
+    | WHILE LPAREN exp RPAREN bstmt                         { (Ast.While($3, $5)), (rhs 1) }
+    | IF LPAREN exp RPAREN bstmt %prec LOWER_THAN_ELSE      { (Ast.If($3, $5,
   (Ast.skip,0))), (rhs 1) }
-	| IF LPAREN exp RPAREN bstmt ELSE stmt					{ (Ast.If($3, $5, $7)), (rhs 1) }
+    | IF LPAREN exp RPAREN bstmt ELSE stmt                  { (Ast.If($3, $5, $7)), (rhs 1) }
 
 exp:
-	| INT 				{ (Ast.Int($1), (rhs 1)) }
-	| VAR ASSIGN exp	{ (Ast.Assign($1, $3), (rhs 2)) }
-	| VAR 				{ (Ast.Var($1)), (rhs 2) }
-	| LPAREN exp RPAREN { ( $2 ) }
-	| exp PLUS exp		{ (Ast.Binop($1, Plus, $3), (rhs 2)) }
-	| exp MINUS exp		{ (Ast.Binop($1, Minus, $3), (rhs 2)) }
-	| exp TIMES exp		{ (Ast.Binop($1, Times, $3), (rhs 2)) }
-	| exp DIV exp		{ (Ast.Binop($1, Div, $3), (rhs 2)) }
-	| exp EQ exp		{ (Ast.Binop($1, Eq, $3), (rhs 2)) }
-	| exp NEQ exp		{ (Ast.Binop($1, Neq, $3), (rhs 2)) }
-	| exp LTE exp		{ (Ast.Binop($1, Lte, $3), (rhs 2)) }
-	| exp GTE exp		{ (Ast.Binop($1, Gte, $3), (rhs 2)) }
-	| exp GT exp		{ (Ast.Binop($1, Gt, $3), (rhs 2)) }
-	| exp LT exp		{ (Ast.Binop($1, Lt, $3), (rhs 2)) }
-	| MINUS exp			{ (Ast.Binop((Ast.Int(-1), 0 ), Times, $2)), (rhs 1)}
-	| NOT exp			{ (Ast.Not($2)), (rhs 1) }
+    | INT               { (Ast.Int($1), (rhs 1)) }
+    | VAR ASSIGN exp    { (Ast.Assign($1, $3), (rhs 2)) }
+    | VAR               { (Ast.Var($1)), (rhs 2) }
+    | LPAREN exp RPAREN { ( $2 ) }
+    | exp PLUS exp      { (Ast.Binop($1, Plus, $3), (rhs 2)) }
+    | exp MINUS exp     { (Ast.Binop($1, Minus, $3), (rhs 2)) }
+    | exp TIMES exp     { (Ast.Binop($1, Times, $3), (rhs 2)) }
+    | exp DIV exp       { (Ast.Binop($1, Div, $3), (rhs 2)) }
+    | exp EQ exp        { (Ast.Binop($1, Eq, $3), (rhs 2)) }
+    | exp NEQ exp       { (Ast.Binop($1, Neq, $3), (rhs 2)) }
+    | exp LTE exp       { (Ast.Binop($1, Lte, $3), (rhs 2)) }
+    | exp GTE exp       { (Ast.Binop($1, Gte, $3), (rhs 2)) }
+    | exp GT exp        { (Ast.Binop($1, Gt, $3), (rhs 2)) }
+    | exp LT exp        { (Ast.Binop($1, Lt, $3), (rhs 2)) }
+    | MINUS exp         { (Ast.Binop((Ast.Int(-1), 0 ), Times, $2)), (rhs 1)}
+    | NOT exp           { (Ast.Not($2)), (rhs 1) }

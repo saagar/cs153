@@ -21,7 +21,7 @@ let cr='\013'
 let nl='\010'
 let eol=(cr nl|nl|cr)
 let ws=('\012'|'\t'|' ')*
-let digit=['0'-'9'] 
+let digit=['0'-'9']
 let identifier = ['a'-'z' 'A'-'Z'] (['a'-'z' 'A'-'Z' '0'-'9' '_'])*
 
 (* rules section *)
@@ -51,17 +51,17 @@ rule lexer = parse
 | "<"   { LT }
 | ">"   { GT }
 | "&&"  { AND }
-| "||"  { OR }  
+| "||"  { OR }
 | eof   { EOF }
 | "!"   { NOT }
   (* delimiters *)
 | ";"   { SEMI }
-| "{"   { LCURLY}  
+| "{"   { LCURLY}
 | "}" { RCURLY }
 | "(" { LPAREN }
 | ")" { RPAREN }
 
 and comment = parse
-  | "*/"  { lexer lexbuf } 
+  | "*/"  { lexer lexbuf }
   | eof { raise (Failure "missing comment terminator") }
   | _   { comment lexbuf }
