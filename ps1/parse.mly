@@ -25,6 +25,7 @@ let parse_error s =
 %type <Ast.program> program
 %type <Ast.stmt> stmt
 %type <Ast.stmt> bstmt
+%type <Ast.stmt> controlexp2
 %type <Ast.stmt> controlexp
 %type <Ast.exp> exp
 
@@ -52,14 +53,6 @@ let parse_error s =
 %left TIMES DIV
 %right NOT
 
-/* dangling else solution as per
-    http://stackoverflow.com/questions/1737460
-        /how-to-find-shift-reduce-conflict-in-this-yacc-file
-*/
-
-%nonassoc LOWER_THAN_ELSE
-%nonassoc ELSE
-
 /* Here's where the real grammar starts -- you'll need to add
 * more rules here... Do not remove the 2%'s!! */
 %%
@@ -67,9 +60,13 @@ let parse_error s =
 program:
   stmt EOF { $1 }
 
+/* dangling else solution as per http://www.parsifalsoft.com/ifelse.html */
+
 stmt:
     | controlexp stmt       { (Ast.Seq($1, $2)), (rhs 1)}
+    | controlexp2 stmt      { (Ast.Seq($1, $2)), (rhs 1)}
     | exp SEMI stmt         { (Ast.Seq((Ast.Exp($1),(rhs 1)), $3)), (rhs 3)}
+    | controlexp            { ( $1 )}
     | bstmt                 { ( $1 )}
 
 bstmt:
@@ -77,14 +74,19 @@ bstmt:
     | exp SEMI              { ( Ast.Exp($1),(rhs 1) )}
     | RETURN exp SEMI       { ( Ast.Return( $2 ) ), (rhs 1)}
     | LCURLY stmt RCURLY    { ( $2 ) }
-    | controlexp            { ( $1 ) }
+    | controlexp2           { ( $1 ) }
     | LCURLY RCURLY         { Ast.skip, 0}
 
 controlexp:
+    | FOR LPAREN exp SEMI exp SEMI exp RPAREN controlexp    { (Ast.For($3, $5, $7, $9)), (rhs 1)}
+    | WHILE LPAREN exp RPAREN controlexp                    { (Ast.While($3, $5)), (rhs 1) }
+    | IF LPAREN exp RPAREN controlexp                       { (Ast.If($3, $5, (Ast.skip,0))), (rhs 1) }
+    | IF LPAREN exp RPAREN bstmt                            { (Ast.If($3, $5, (Ast.skip,0))), (rhs 1) }
+    | IF LPAREN exp RPAREN bstmt ELSE controlexp            { (Ast.If($3, $5, $7)), (rhs 1) }
+
+controlexp2:
     | FOR LPAREN exp SEMI exp SEMI exp RPAREN bstmt         { (Ast.For($3, $5, $7, $9)), (rhs 1)}
     | WHILE LPAREN exp RPAREN bstmt                         { (Ast.While($3, $5)), (rhs 1) }
-    | IF LPAREN exp RPAREN bstmt %prec LOWER_THAN_ELSE      { (Ast.If($3, $5,
-  (Ast.skip,0))), (rhs 1) }
     | IF LPAREN exp RPAREN bstmt ELSE bstmt                 { (Ast.If($3, $5, $7)), (rhs 1) }
 
 exp:
