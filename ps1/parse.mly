@@ -71,12 +71,6 @@ stmt:
     | controlexp stmt       { (Ast.Seq($1, $2)), (rhs 1)}
     | exp SEMI stmt         { (Ast.Seq((Ast.Exp($1),(rhs 1)), $3)), (rhs 3)}
     | bstmt                 { ( $1 )}
-/*  | LCURLY RCURLY         { Ast.skip, 0}*/
-/*  | controlexp */
-/*  | LCURLY stmt RCURLY*/
-/*  | exp SEMI              {}*/
-/*  | RETURN exp SEMI       { Ast.Return( $2 ), (rhs 1)}*/
-/*  | SEMI                  { Ast.skip, 0}*/
 
 bstmt:
     | SEMI                  { Ast.skip, 0}
@@ -91,7 +85,7 @@ controlexp:
     | WHILE LPAREN exp RPAREN bstmt                         { (Ast.While($3, $5)), (rhs 1) }
     | IF LPAREN exp RPAREN bstmt %prec LOWER_THAN_ELSE      { (Ast.If($3, $5,
   (Ast.skip,0))), (rhs 1) }
-    | IF LPAREN exp RPAREN bstmt ELSE stmt                  { (Ast.If($3, $5, $7)), (rhs 1) }
+    | IF LPAREN exp RPAREN bstmt ELSE bstmt                 { (Ast.If($3, $5, $7)), (rhs 1) }
 
 exp:
     | INT               { (Ast.Int($1), (rhs 1)) }
