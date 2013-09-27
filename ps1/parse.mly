@@ -102,5 +102,7 @@ exp:
     | exp GTE exp       { (Ast.Binop($1, Gte, $3), (rhs 2)) }
     | exp GT exp        { (Ast.Binop($1, Gt, $3), (rhs 2)) }
     | exp LT exp        { (Ast.Binop($1, Lt, $3), (rhs 2)) }
+    | exp AND exp       { (Ast.And($1, $3), (rhs 2)) }
+    | exp OR exp        { (Ast.Or($1, $3), (rhs 2)) }
     | MINUS exp         { (Ast.Binop((Ast.Int(-1), 0 ), Times, $2)), (rhs 1)}
     | NOT exp           { (Ast.Not($2)), (rhs 1) }
