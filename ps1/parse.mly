@@ -35,7 +35,7 @@ let parse_error s =
 * build values using this datatype constructor to pass to the parser.
 * You will need to augment this with your own tokens...
 */
-/* SAAGAR TODO - add remaining tokens */
+
 %token <int> INT
 %token <string> VAR
 %token EOF
@@ -43,6 +43,7 @@ let parse_error s =
 %token AND OR
 %token WHILE IF ELSE FOR RETURN
 %token LCURLY RCURLY
+
 
 %left PLUS MINUS
 %left TIMES DIV

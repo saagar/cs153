@@ -62,6 +62,6 @@ rule lexer = parse
 | ")" { RPAREN }
 
 and comment = parse
-  | "*/"  { comment lexbuf } (* NOTE: is this correct? *)
+  | "*/"  { lexer lexbuf } 
   | eof { raise (Failure "missing comment terminator") }
   | _   { comment lexbuf }
