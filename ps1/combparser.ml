@@ -24,10 +24,11 @@ let mkbinop = fun (e1, (op, e2)) -> (Binop (e1, op, e2), dummy_pos)
 
 let rec make_aexp_parser () : (token, exp) parser =
   let int_parser = satisfy_opt (function INT i -> Some (Int i, dummy_pos) | _ -> None) in
+  let var_parser = satisfy_opt (function VAR s -> Some (Var s, dummy_pos) | _ -> None) in
   let sub_parser = seq (satisfy (fun t -> t == LPAREN), 
     lazy_seq (lazy (make_exp_parser ()), lazy (satisfy (fun t -> t == RPAREN)))) in 
   let sub_exp_parser = map (fun (_, (e, _)) -> e) sub_parser in
-  alt (int_parser, sub_exp_parser)
+  alts [int_parser; sub_exp_parser; var_parser]
 and make_bexp_parser () : (token, exp) parser =
   let neg_op_parser = satisfy_opt (function MINUS -> Some Minus | _ -> None) in
   let helper = lazy_seq (lazy neg_op_parser, lazy (make_aexp_parser ())) in
@@ -72,7 +73,12 @@ and make_hexp_parser () : (token, exp) parser =
   let mkor = fun (e1, (_, e2)) -> (Or (e1, e2), dummy_pos) in
   let or_parser = map mkor or_helper in
   alt (make_gexp_parser (), or_parser)
-and make_exp_parser () : (token, exp) parser = make_hexp_parser ()
+and make_exp_parser () : (token, exp) parser =
+  let assign_op_parser = satisfy (function ASSIGN -> true | _ -> false) in
+  let var_parser = satisfy_opt (function VAR s -> Some (s) | _ -> None) in
+  let assign_helper = lazy_seq (lazy (var_parser), lazy (lazy_seq (lazy assign_op_parser, lazy (make_exp_parser ())))) in
+  let mkassign = fun (e1, (_, e2)) -> (Assign(e1, e2), dummy_pos) in
+  alt (make_hexp_parser (), map mkassign assign_helper)
 
 let rec make_stmt_parser (():unit) : (token, stmt) parser =
   let return_parser = seq (satisfy (fun t -> t == RETURN), lazy_seq (lazy (make_exp_parser ()), 
