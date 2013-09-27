@@ -6,22 +6,9 @@ open Ast
 
 let dummy_pos : pos = 0
 
-(*let rec make_exp_parser (():unit) : (token, exp) parser =
-  let int_parser = satisfy_opt (function INT i -> Some (Int i, dummy_pos) | _ -> None) in
-  let sub_parser = seq (satisfy (fun t -> t == LPAREN), 
-    lazy_seq (lazy (make_exp_parser ()), lazy (satisfy (fun t -> t == RPAREN)))) in 
-  let sub_exp_parser = map (fun (_, (e, _)) -> e) sub_parser in
-  let first_parser = alt (int_parser, sub_exp_parser) in
-  let rest_parser = seq (first_parser, make_binop_rest ()) in
-  let binop_parser = map (fun (e1, (op, e2)) -> (Binop (e1, op, e2), dummy_pos)) rest_parser in
-  alts [binop_parser; first_parser]
-and make_binop_rest (():unit) : (token, (binop * exp)) parser =
-  let binop_op_parser = satisfy_opt (function 
-    PLUS -> Some Plus | MINUS -> Some Minus | STAR -> Some Times | SLASH -> Some Div | _ -> None) in
-  lazy_seq (lazy binop_op_parser, lazy (make_exp_parser ()))*)
-
 let mkbinop = fun (e1, (op, e2)) -> (Binop (e1, op, e2), dummy_pos)
 
+(* expressions *)
 let rec make_aexp_parser () : (token, exp) parser =
   let int_parser = satisfy_opt (function INT i -> Some (Int i, dummy_pos) | _ -> None) in
   let var_parser = satisfy_opt (function VAR s -> Some (Var s, dummy_pos) | _ -> None) in
@@ -80,12 +67,72 @@ and make_exp_parser () : (token, exp) parser =
   let mkassign = fun (e1, (_, e2)) -> (Assign(e1, e2), dummy_pos) in
   alt (make_hexp_parser (), map mkassign assign_helper)
 
+let token_parser (t:token) = satisfy (fun x -> x == t)
+
+(* statements...see parse.mly for the grammar on which this is based *)
 let rec make_stmt_parser (():unit) : (token, stmt) parser =
-  let return_parser = seq (satisfy (fun t -> t == RETURN), lazy_seq (lazy (make_exp_parser ()), 
-    lazy (satisfy (fun t -> t == SEMI)))) in
+  let semi_parser = token_parser SEMI in
+  let single_parser = lazy_seq (lazy (make_exp_parser ()), lazy (lazy_seq (lazy (semi_parser), lazy (make_stmt_parser ())))) in
+  let single_stmt_parser = map (fun (e, (_, s)) -> (Seq((Exp(e), dummy_pos), s)), dummy_pos) single_parser in
+  let controlexp_parser = lazy_seq (lazy (alt (make_controlexp_parser (), make_controlexp2_parser ())), lazy (make_stmt_parser ())) in
+  let controlexp_stmt_parser = map (fun (e1, e2) -> (Seq(e1, e2)), dummy_pos) controlexp_parser in
+  alts [single_stmt_parser; controlexp_stmt_parser; make_controlexp_parser (); make_bstmt_parser ()]
+and make_bstmt_parser () : (token, stmt) parser =
+  let semi_parser = token_parser SEMI in
+  let semi_stmt_parser = const_map (Ast.skip, dummy_pos) semi_parser in
+  let singleline_parser = lazy_seq (lazy (make_exp_parser ()), lazy semi_parser) in
+  let singleline_stmt_parser = map (fun (e, _) -> (Exp(e), dummy_pos)) singleline_parser in
+  let return_parser = seq (satisfy (fun t -> t == RETURN), lazy_seq (lazy (make_exp_parser ()), lazy (satisfy (fun t -> t == SEMI)))) in
   let return_stmt_parser = map (fun (_, (e, _)) -> ((Return e), dummy_pos)) return_parser in
-  let exp_stmt_parser = map (fun e -> (Exp e, dummy_pos)) (make_exp_parser ()) in
-  alts [return_stmt_parser; exp_stmt_parser]
+  let lcurly_parser = token_parser LCURLY in
+  let rcurly_parser = token_parser RCURLY in
+  let emptycurly_stmt_parser = const_map (Ast.skip, dummy_pos) (seq (lcurly_parser, rcurly_parser)) in
+  let curly_parser = seq (lcurly_parser, lazy_seq (lazy (make_stmt_parser ()), lazy rcurly_parser)) in
+  let curly_stmt_parser = map (fun (_, (e, _)) -> e) curly_parser in
+  alts [semi_stmt_parser; singleline_stmt_parser; return_stmt_parser; emptycurly_stmt_parser; curly_stmt_parser; make_controlexp2_parser ()]
+and make_controlexp_parser () : (token, stmt) parser =
+  let for_token_parser = token_parser FOR in
+  let lparen_parser = token_parser LPAREN in
+  let rparen_parser = token_parser RPAREN in
+  let semi_parser = token_parser SEMI in
+  let while_token_parser = token_parser WHILE in
+  let if_token_parser = token_parser IF in
+  let else_token_parser = token_parser ELSE in
+  let for_parser = seq (for_token_parser, seq (lparen_parser, lazy_seq (lazy (make_exp_parser ()),
+		   lazy (seq (semi_parser, lazy_seq (lazy (make_exp_parser ()), lazy (seq (semi_parser,
+                   lazy_seq (lazy (make_exp_parser ()), lazy (seq (rparen_parser, make_controlexp_parser ()))))))))))) in
+  let for_stmt_parser = map (fun (_, (_, (e1, (_, (e2, (_, (e3, (_, e4)))))))) -> (For(e1, e2, e3, e4), dummy_pos)) for_parser in
+  let while_parser = seq (while_token_parser, seq (lparen_parser, lazy_seq (lazy (make_exp_parser ()),
+                   lazy (seq (rparen_parser, make_controlexp_parser ()))))) in
+  let while_stmt_parser = map (fun (_, (_, (e1, (_, e2)))) -> (While(e1, e2), dummy_pos)) while_parser in
+  let if_parser = seq (if_token_parser, seq (lparen_parser, lazy_seq (lazy (make_exp_parser ()),
+                   lazy (seq (rparen_parser, alt (make_controlexp_parser (), make_bstmt_parser ())))))) in
+  let if_stmt_parser = map (fun (_, (_, (e1, (_, e2)))) -> (If(e1, e2, (Ast.skip, dummy_pos)), dummy_pos)) if_parser in
+  let ifelse_parser = seq (if_token_parser, seq (lparen_parser, lazy_seq (lazy (make_exp_parser ()),
+                   lazy (seq (rparen_parser, lazy_seq (lazy (make_bstmt_parser ()), lazy (seq (else_token_parser,
+                   make_controlexp_parser ())))))))) in
+  let ifelse_stmt_parser = map (fun (_, (_, (e1, (_, (e2, (_, (e3))))))) -> (If(e1, e2, e3), dummy_pos)) ifelse_parser in
+  alts [for_stmt_parser; while_stmt_parser; if_stmt_parser; ifelse_stmt_parser]
+and make_controlexp2_parser () : (token, stmt) parser =
+  let for_token_parser = token_parser FOR in
+  let lparen_parser = token_parser LPAREN in
+  let rparen_parser = token_parser RPAREN in
+  let semi_parser = token_parser SEMI in
+  let while_token_parser = token_parser WHILE in
+  let if_token_parser = token_parser IF in
+  let else_token_parser = token_parser ELSE in
+  let for_parser = seq (for_token_parser, seq (lparen_parser, lazy_seq (lazy (make_exp_parser ()),
+		   lazy (seq (semi_parser, lazy_seq (lazy (make_exp_parser ()), lazy (seq (semi_parser,
+                   lazy_seq (lazy (make_exp_parser ()), lazy (seq (rparen_parser, make_bstmt_parser ()))))))))))) in
+  let for_stmt_parser = map (fun (_, (_, (e1, (_, (e2, (_, (e3, (_, e4)))))))) -> (For(e1, e2, e3, e4), dummy_pos)) for_parser in
+  let while_parser = seq (while_token_parser, seq (lparen_parser, lazy_seq (lazy (make_exp_parser ()),
+                   lazy (seq (rparen_parser, make_bstmt_parser ()))))) in
+  let while_stmt_parser = map (fun (_, (_, (e1, (_, e2)))) -> (While(e1, e2), dummy_pos)) while_parser in
+  let ifelse_parser = seq (if_token_parser, seq (lparen_parser, lazy_seq (lazy (make_exp_parser ()),
+                   lazy (seq (rparen_parser, lazy_seq (lazy (make_bstmt_parser ()), lazy (seq (else_token_parser,
+                   make_bstmt_parser ())))))))) in
+  let ifelse_stmt_parser = map (fun (_, (_, (e1, (_, (e2, (_, (e3))))))) -> (If(e1, e2, e3), dummy_pos)) ifelse_parser in
+  alts [for_stmt_parser; while_stmt_parser; ifelse_stmt_parser]
 
 let parse(ts:token list) : program = 
   let program_parser = make_stmt_parser () in

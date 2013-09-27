@@ -48,7 +48,8 @@ let parse_error s =
 %right ASSIGN
 %left OR
 %left AND
-%left EQ NEQ LTE LT GTE GT
+%left EQ NEQ
+%left LTE LT GTE GT
 %left PLUS MINUS
 %left TIMES DIV
 %right NOT
