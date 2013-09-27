@@ -44,10 +44,13 @@ let parse_error s =
 %token WHILE IF ELSE FOR RETURN
 %token LCURLY RCURLY
 
-
+%right ASSIGN
+%left OR
+%left AND
+%left EQ NEQ LTE LT GTE GT
 %left PLUS MINUS
 %left TIMES DIV
-
+%right NOT
 
 /* dangling else solution as per
 	http://stackoverflow.com/questions/1737460
