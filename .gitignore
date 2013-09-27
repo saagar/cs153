@@ -12,3 +12,9 @@ ps1.zip
 
 # ignore the 153 .git for now.
 *.git153
+
+# pset 1 ignore files
+ps1/lex.ml
+ps1/parse.ml
+ps1/ps1comb
+ps1/ps1yacc
