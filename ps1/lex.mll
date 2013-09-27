@@ -1,4 +1,5 @@
 (* Lexer for Fish --- TODO *)
+(* Emmet Jao and Saagar Deshpande *)
 
 (* You need to add new definition to build the
  * appropriate terminals to feed to parse.mly.
