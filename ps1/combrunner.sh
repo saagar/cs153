@@ -2,23 +2,27 @@
 
 FILES="test/*"
 function runall {
-  i=0
-  for f in $FILES
-  do
-    i=$(($i+1))
-    out=`./ps1comb $f`
-    a=( $out )
-    if [[ ${a[0]} = "Fatal" ]]; then
-      echo "boom"
+i=0
+for f in $FILES
+do
+  i=$(($i+1))
+  out=`./ps1comb $f`
+  a=( $out )
+  if [[ ${a[0]} = "Fatal" ]]; then
+    echo "boom"
+  else
+    ans=`head -$i solutions | tail -1`
+    if [[ $ans = ${a[2]} ]]; then
+      echo -n -e "\e[92m[ SUCCESS ] "
+      tput sgr0
+      echo Test $i passed! answer: ${a[2]}, expected: $ans
     else
-      ans=`head -$i solutions | tail -1`
-      if [[ $ans = ${a[2]} ]]; then
-        echo Test $i passed! answer: ${a[2]}, expected: $ans
-      else
-        echo FAILED: test $i answer: ${a[2]}, expected: $ans
-      fi
+      echo -n -e "\e[91m[ FAILED! ] "
+      tput sgr0
+      echo Test $i answer: ${a[2]}, expected: $ans
     fi
-  done
+  fi
+done
 }
 
 runall

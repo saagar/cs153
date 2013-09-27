@@ -13,9 +13,13 @@ function runall {
     else
       ans=`head -$i solutions | tail -1`
       if [[ $ans = ${a[2]} ]]; then
-        echo "[ SUCCESS ]" Test $i passed! answer: ${a[2]}, expected: $ans
+        echo -n -e "\e[92m[ SUCCESS ] "
+        tput sgr0
+        echo Test $i passed! answer: ${a[2]}, expected: $ans
       else
-        echo "[ FAILED ]" Test $i answer: ${a[2]}, expected: $ans
+        echo -n -e "\e[91m[ FAILED! ] "
+        tput sgr0
+        echo Test $i answer: ${a[2]}, expected: $ans
       fi
     fi
   done
