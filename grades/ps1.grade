@@ -1,0 +1,10 @@
+Part 1 (comb): 4.8/5 Points
+Part 2 (yacc): 4.7/5 Points
+
+Comments:
+---------
+
+- Don't support programs with sequential code blocks "{} x=2; return x;"
+- You need to have a catch-all in your lexer to avoid your parser from hanging on bad tokens
+
+Please see attached test output for more information.
