@@ -31,9 +31,12 @@ let rec new_temp() =
 (* reset internal state *)
 let reset() = (label_counter := 0; variables := VarSet.empty)
 
+(* prefix that will be added to all variable names to avoid conflicts with MIPS instructions *)
+let unique_prefix = "_sdej_"
+
 (* wrapper for VarSet.add that prefixes the variable name and adds it to the variables set *)
-let mangle_add v : () =
-  let mangled_v = String.concat "" ["_sdej_"; v] in
+let mangle_add v : unit =
+  let mangled_v = String.concat "" [unique_prefix; v] in
   variables := VarSet.add mangled_v !variables
 
 (* find all of the variables in a program and add them to
