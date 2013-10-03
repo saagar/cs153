@@ -34,8 +34,26 @@ let reset() = (label_counter := 0; variables := VarSet.empty)
  * the set variables *)
 let rec collect_vars (p : Ast.program) : unit = 
     (*************************************************************)
-    raise IMPLEMENT_ME
+    (*raise IMPLEMENT_ME*)
     (*************************************************************)
+  let rec collect_vars_exp (e : Ast.exp) : unit =
+    let (r, _) = e in
+    match r with
+      Ast.Int _ -> ()
+    | Ast.Var x -> variables := VarSet.add x !variables
+    | Ast.Binop (e1, _, e2) -> collect_vars_exp e1; collect_vars_exp e2
+    | Ast.Not e1 -> collect_vars_exp e1
+    | Ast.And (e1, e2) -> collect_vars_exp e1; collect_vars_exp e2
+    | Ast.Or (e1, e2) -> collect_vars_exp e1; collect_vars_exp e2
+    | Ast.Assign (x, e1) -> variables := VarSet.add x !variables; collect_vars_exp e1 in
+  let (s, _) = p in
+  match s with
+  | Ast.Exp e -> collect_vars_exp e
+  | Ast.Seq (s1, s2) -> collect_vars s1; collect_vars s2
+  | Ast.If (e, s1, s2) -> collect_vars_exp e; collect_vars s1; collect_vars s2
+  | Ast.While (e, s1) -> collect_vars_exp e; collect_vars s1
+  | Ast.For (e1, e2, e3, s1) -> collect_vars_exp e1; collect_vars_exp e2; collect_vars_exp e3; collect_vars s1
+  | Ast.Return e -> collect_vars_exp e
 
 (* compiles a Fish statement down to a list of MIPS instructions.
  * Note that a "Return" is accomplished by placing the resulting
@@ -43,8 +61,9 @@ let rec collect_vars (p : Ast.program) : unit =
  *)
 let rec compile_stmt ((s,_):Ast.stmt) : inst list = 
     (*************************************************************)
-    raise IMPLEMENT_ME
+    (*raise IMPLEMENT_ME*)
     (*************************************************************)
+  []
 
 (* compiles Fish AST down to MIPS instructions and a list of global vars *)
 let compile (p : Ast.program) : result = 

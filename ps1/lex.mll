@@ -1,4 +1,4 @@
-(* Lexer for Fish --- TODO *)
+(* Lexer for Fish *)
 (* Emmet Jao and Saagar Deshpande *)
 
 (* You need to add new definition to build the

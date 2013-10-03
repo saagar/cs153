@@ -1,4 +1,4 @@
-/* Parser for Fish --- TODO */
+/* Parser for Fish */
 /* Emmet Jao and Saagar Deshpande */
 %{
 open Ast
