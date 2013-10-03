@@ -1,4 +1,5 @@
 (* Compile Fish AST to MIPS AST *)
+(* Emmet Jao and Saagar Deshpande *)
 open Mips
 
 exception IMPLEMENT_ME
@@ -63,7 +64,13 @@ let rec compile_stmt ((s,_):Ast.stmt) : inst list =
     (*************************************************************)
     (*raise IMPLEMENT_ME*)
     (*************************************************************)
-  []
+  match s with
+  | Ast.Exp e -> []
+  | Ast.Seq (s1, s2) -> []
+  | Ast.If (e, s1, s2) -> []
+  | Ast.While (e, s1) -> []
+  | Ast.For (e1, e2, e3, s1) -> []
+  | Ast.Return e -> []
 
 (* compiles Fish AST down to MIPS instructions and a list of global vars *)
 let compile (p : Ast.program) : result = 
