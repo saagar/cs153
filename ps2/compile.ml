@@ -34,10 +34,10 @@ let reset() = (label_counter := 0; variables := VarSet.empty)
 (* prefix that will be added to all variable names to avoid conflicts with MIPS instructions *)
 let unique_prefix = "_sdej_"
 
+let mangle v = unique_prefix ^ v
+
 (* wrapper for VarSet.add that prefixes the variable name and adds it to the variables set *)
-let mangle_add v : unit =
-  let mangled_v = String.concat "" [unique_prefix; v] in
-  variables := VarSet.add mangled_v !variables
+let mangle_add v : unit = variables := VarSet.add (mangle v) !variables
 
 (* find all of the variables in a program and add them to
  * the set variables *)
@@ -75,13 +75,13 @@ let rec compile_stmt ((s,_):Ast.stmt) : inst list =
   let rec exp2mips ((e,_):Ast.exp) : inst list =
     (match e with
       Ast.Int x -> [Li(R2, Word32.fromInt x)]
-    | Ast.Var x -> [La(R2, x); Lw(R2, R2, Int32.zero)]
+    | Ast.Var x -> [La(R2, (mangle x)); Lw(R2, R2, Int32.zero)]
     | Ast.Binop (e1, b, e2) ->
       (let t = new_temp() in
        (exp2mips e1) @ [La(R3,t); Sw(R2, R3, Int32.zero)] @
          (exp2mips e2) @ [La(R3, t); Lw(R3, R3, Int32.zero)] @
          (match b with
-	 | Ast.Plus  -> [Add(R2, R3, Reg R2)]
+         | Ast.Plus  -> [Add(R2, R3, Reg R2)]
          | Ast.Minus -> [Sub(R2, R3, R2)]
          | Ast.Times -> [Mul(R2, R3, R2)]
          | Ast.Div   -> [Div(R2, R3, R2)]
@@ -91,10 +91,10 @@ let rec compile_stmt ((s,_):Ast.stmt) : inst list =
          | Ast.Lte   -> [Sle(R2, R3, R2)]
          | Ast.Gt    -> [Sgt(R2, R3, R2)]
          | Ast.Gte   -> [Sge(R2, R3, R2)]))
-    | Ast.Not e1 -> []
-    | Ast.And (e1, e2) -> []
-    | Ast.Or (e1, e2) -> []
-    | Ast.Assign (x, e1) -> (exp2mips e1) @ [La(R3, x); Sw(R2, R3, Int32.zero)]) in
+    | Ast.Not e1 -> (exp2mips e1) @ [Seq(R2, R2, R0)]
+    | Ast.And (e1, e2) -> raise IMPLEMENT_ME
+    | Ast.Or (e1, e2) -> raise IMPLEMENT_ME
+    | Ast.Assign (x, e1) -> (exp2mips e1) @ [La(R3, (mangle x)); Sw(R2, R3, Int32.zero)]) in
   match s with
   | Ast.Exp e -> exp2mips e
   | Ast.Seq (s1, s2) -> (compile_stmt s1) @ (compile_stmt s2)
@@ -111,7 +111,7 @@ let rec compile_stmt ((s,_):Ast.stmt) : inst list =
        [Label test_label] @ (exp2mips e) @ [Bne(R2, R0, top_label)])
   | Ast.For (e1, e2, e3, s1) ->
     compile_stmt (Ast.Seq ((Ast.Exp e1, 0), (Ast.While (e2, (Ast.Seq (s1, (Ast.Exp e3, 0)), 0)), 0)), 0)
-  | Ast.Return e -> []
+  | Ast.Return e -> (exp2mips e) @ [Jr R31]
 
 (* compiles Fish AST down to MIPS instructions and a list of global vars *)
 let compile (p : Ast.program) : result = 
