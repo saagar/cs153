@@ -84,13 +84,13 @@ let rec compile_stmt ((s,_):Ast.stmt) : inst list =
          | Ast.Plus  -> [Add(R2, R3, Reg R2)]
          | Ast.Minus -> [Sub(R2, R3, R2)]
          | Ast.Times -> [Mul(R2, R3, R2)]
-         | Ast.Div   -> [Div(R2, R3, R2)]
-         | Ast.Eq    -> [Seq(R2, R3, R2)]
-         | Ast.Neq   -> [Sne(R2, R3, R2)]
-         | Ast.Lt    -> [Slt(R2, R3, R2)]
-         | Ast.Lte   -> [Sle(R2, R3, R2)]
-         | Ast.Gt    -> [Sgt(R2, R3, R2)]
-         | Ast.Gte   -> [Sge(R2, R3, R2)]))
+         | Ast.Div -> [Div(R2, R3, R2)]
+         | Ast.Eq -> [Seq(R2, R3, R2)]
+         | Ast.Neq -> [Sne(R2, R3, R2)]
+         | Ast.Lt -> [Slt(R2, R3, R2)]
+         | Ast.Lte -> [Sle(R2, R3, R2)]
+         | Ast.Gt -> [Sgt(R2, R3, R2)]
+         | Ast.Gte -> [Sge(R2, R3, R2)]))
     | Ast.Not e1 -> (exp2mips e1) @ [Seq(R2, R2, R0)]
     | Ast.And (e1, e2) ->
       (let else_label = new_label() in
