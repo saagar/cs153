@@ -78,17 +78,27 @@ let rec compile_stmt ((s,_):Ast.stmt) : inst list =
     | Ast.Var x -> [La(R2, x); Lw(R2, R2, Int32.zero)]
     | Ast.Binop (e1, b, e2) ->
       (let t = new_temp() in
-       (exp2mips e1) @ [La(R1,t); Sw(R2, R1, Int32.zero)] @
-         (exp2mips e2) @ [La(R1, t); Lw(R1, R1, Int32.zero)] @
+       (exp2mips e1) @ [La(R3,t); Sw(R2, R3, Int32.zero)] @
+         (exp2mips e2) @ [La(R3, t); Lw(R3, R3, Int32.zero)] @
          (match b with
-	 | Ast.Plus -> [Add(R2,R2,Reg R1)]
-	 | _ -> []
-	 )
+	        | Ast.Plus  -> [Add(R2,R2,Reg R3)]
+          | Ast.Minus -> [Sub(R2,R2,Reg R3)]
+          | Ast.Times -> [Mul(R2,R2,Reg R3)]
+          | Ast.Div   -> [Div(R2,R2,Reg R3)]
+          | Ast.Eq    -> [Seq(R2,R2,Reg R3)]
+          | Ast.Neq   -> [Sne(R2,R2,Reg R3)]
+          | Ast.Lt    -> [Slt(R2,R2,Reg R3)]
+          | Ast.Lte   -> [Sle(R2,R2,Reg R3)]
+          | Ast.Gt    -> [Sgt(R2,R2,Reg R3)]
+          | Ast.Gte   -> [Sge(R2,R2,Reg R3)]
+          )
       )
     | Ast.Not e1 -> []
     | Ast.And (e1, e2) -> []
     | Ast.Or (e1, e2) -> []
-    | Ast.Assign (x, e1) -> []) in
+    | Ast.Assign (x, e) -> [exp2mips e] @
+                           [La(R1,x); Sw(R2, R1, Int32.zero)]
+    ) in
   match s with
   | Ast.Exp e -> exp2mips e
   | Ast.Seq (s1, s2) -> (compile_stmt s1) @ (compile_stmt s2)
