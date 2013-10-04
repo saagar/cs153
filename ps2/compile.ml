@@ -81,24 +81,20 @@ let rec compile_stmt ((s,_):Ast.stmt) : inst list =
        (exp2mips e1) @ [La(R3,t); Sw(R2, R3, Int32.zero)] @
          (exp2mips e2) @ [La(R3, t); Lw(R3, R3, Int32.zero)] @
          (match b with
-	        | Ast.Plus  -> [Add(R2,R2,Reg R3)]
-          | Ast.Minus -> [Sub(R2,R2,Reg R3)]
-          | Ast.Times -> [Mul(R2,R2,Reg R3)]
-          | Ast.Div   -> [Div(R2,R2,Reg R3)]
-          | Ast.Eq    -> [Seq(R2,R2,Reg R3)]
-          | Ast.Neq   -> [Sne(R2,R2,Reg R3)]
-          | Ast.Lt    -> [Slt(R2,R2,Reg R3)]
-          | Ast.Lte   -> [Sle(R2,R2,Reg R3)]
-          | Ast.Gt    -> [Sgt(R2,R2,Reg R3)]
-          | Ast.Gte   -> [Sge(R2,R2,Reg R3)]
-          )
-      )
+	 | Ast.Plus  -> [Add(R2, R3, Reg R2)]
+         | Ast.Minus -> [Sub(R2, R3, R2)]
+         | Ast.Times -> [Mul(R2, R3, R2)]
+         | Ast.Div   -> [Div(R2, R3, R2)]
+         | Ast.Eq    -> [Seq(R2, R3, R2)]
+         | Ast.Neq   -> [Sne(R2, R3, R2)]
+         | Ast.Lt    -> [Slt(R2, R3, R2)]
+         | Ast.Lte   -> [Sle(R2, R3, R2)]
+         | Ast.Gt    -> [Sgt(R2, R3, R2)]
+         | Ast.Gte   -> [Sge(R2, R3, R2)]))
     | Ast.Not e1 -> []
     | Ast.And (e1, e2) -> []
     | Ast.Or (e1, e2) -> []
-    | Ast.Assign (x, e) -> [exp2mips e] @
-                           [La(R1,x); Sw(R2, R1, Int32.zero)]
-    ) in
+    | Ast.Assign (x, e1) -> (exp2mips e1) @ [La(R3, x); Sw(R2, R3, Int32.zero)]) in
   match s with
   | Ast.Exp e -> exp2mips e
   | Ast.Seq (s1, s2) -> (compile_stmt s1) @ (compile_stmt s2)
