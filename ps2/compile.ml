@@ -72,10 +72,32 @@ let rec compile_stmt ((s,_):Ast.stmt) : inst list =
     (*************************************************************)
     (*raise IMPLEMENT_ME*)
     (*************************************************************)
+  let rec exp2mips ((e,_):Ast.exp) : inst list =
+    (match e with
+      Ast.Int x -> [Li(R2, Word32.fromInt x)]
+    | Ast.Var x -> [La(R2, x); Lw(R2, R2, Int32.zero)]
+    | Ast.Binop (e1, b, e2) ->
+      (let t = new_temp() in
+       (exp2mips e1) @ [La(R1,t); Sw(R2, R1, Int32.zero)] @
+         (exp2mips e2) @ [La(R1, t); Lw(R1, R1, Int32.zero)] @
+         (match b with
+	 | Ast.Plus -> [Add(R2,R2,Reg R1)]
+	 | _ -> []
+	 )
+      )
+    | Ast.Not e1 -> []
+    | Ast.And (e1, e2) -> []
+    | Ast.Or (e1, e2) -> []
+    | Ast.Assign (x, e1) -> []) in
   match s with
-  | Ast.Exp e -> []
-  | Ast.Seq (s1, s2) -> []
-  | Ast.If (e, s1, s2) -> []
+  | Ast.Exp e -> exp2mips e
+  | Ast.Seq (s1, s2) -> (compile_stmt s1) @ (compile_stmt s2)
+  | Ast.If (e, s1, s2) ->
+    (let else_label = new_label() in
+     let end_label = new_label() in
+     (exp2mips e) @ [Beq(R2, R0, else_label)] @
+       (compile_stmt s1) @ [J end_label; Label else_label] @
+       (compile_stmt s2) @ [Label end_label])
   | Ast.While (e, s1) -> []
   | Ast.For (e1, e2, e3, s1) -> []
   | Ast.Return e -> []
