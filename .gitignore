@@ -23,3 +23,5 @@ ps1/ps1yacc
 # pset 2 ignore files
 ps2/lex.ml
 ps2/parse.ml
+ps2/compiled
+ps2/ps2
