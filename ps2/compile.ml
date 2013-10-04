@@ -92,8 +92,18 @@ let rec compile_stmt ((s,_):Ast.stmt) : inst list =
          | Ast.Gt    -> [Sgt(R2, R3, R2)]
          | Ast.Gte   -> [Sge(R2, R3, R2)]))
     | Ast.Not e1 -> (exp2mips e1) @ [Seq(R2, R2, R0)]
-    | Ast.And (e1, e2) -> raise IMPLEMENT_ME
-    | Ast.Or (e1, e2) -> raise IMPLEMENT_ME
+    | Ast.And (e1, e2) ->
+      (let else_label = new_label() in
+       let end_label = new_label() in
+       (exp2mips e1) @ [Beq(R2, R0, else_label)] @
+	 (exp2mips e2) @ [Sne(R2, R2, R0); J end_label; Label else_label] @
+	 [Li(R2, Word32.fromInt 0); Label end_label])
+    | Ast.Or (e1, e2) ->
+      (let else_label = new_label() in
+       let end_label = new_label() in
+       (exp2mips e1) @ [Beq(R2, R0, else_label)] @
+	 [Li(R2, Word32.fromInt 1); J end_label; Label else_label] @
+	 (exp2mips e2) @ [Sne(R2, R2, R0); Label end_label])
     | Ast.Assign (x, e1) -> (exp2mips e1) @ [La(R3, (mangle x)); Sw(R2, R3, Int32.zero)]) in
   match s with
   | Ast.Exp e -> exp2mips e
