@@ -19,3 +19,7 @@ ps1/lex.ml
 ps1/parse.ml
 ps1/ps1comb
 ps1/ps1yacc
+
+# pset 2 ignore files
+ps2/lex.ml
+ps2/parse.ml
