@@ -12,7 +12,18 @@ let new_int() = (label_counter := (!label_counter) + 1; !label_counter)
 let new_label() = "L" ^ (string_of_int (new_int()))
 
 let rec compile (p:Ast.program) : result =
-    raise IMPLEMENT_ME
+    (*raise IMPLEMENT_ME*)
+  let compile_func (f:Ast.funcsig) : Mips.inst list =
+    let name = f.Ast.name in
+    let args = f.Ast.args in
+    let body = f.Ast.body in
+    [] (* TODO *) in
+  let rec compile_code (prog:Ast.program) : Mips.inst list =
+    match prog with
+      [] -> []
+    | (Ast.Fn(f))::tl -> compile_func f @ compile_code tl in
+  (* insert jump to main? *)
+  { code=(compile_code p); data=[] }
 
 let result2string (res:result) : string = 
     let code = res.code in
