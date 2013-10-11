@@ -5,6 +5,12 @@
 # pset zip files
 ps1.zip
 ps2.zip
+ps3.zip
+ps4.zip
+ps5.zip
+ps6.zip
+ps7.zip
+ps8.zip
 
 # ocaml temp build files
 *.cmi
