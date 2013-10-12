@@ -15,6 +15,7 @@ let new_label() = "L" ^ (string_of_int (new_int()))
 module type VARMAP =
 sig
   type varmap
+  exception NotFound
   val empty_varmap : unit -> varmap
   val insert_var : varmap -> Ast.var -> int -> varmap
   val lookup_var : varmap -> Ast.var -> int
