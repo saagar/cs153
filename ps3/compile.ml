@@ -54,7 +54,26 @@ let rec exp2mips vm ((e,_):Ast.exp) : Mips.inst list =
       | Ast.Gt -> [Sgt(R2, R3, R2)]
       | Ast.Gte -> [Sge(R2, R3, R2)])
   | Ast.Not e1 -> (exp2mips vm e1) @ [Seq(R2, R2, R0)]
-  | _ -> []
+  | Ast.And (e1, e2) ->
+    (let else_label = new_label() in
+     let end_label = new_label() in
+     (exp2mips vm e1) @ [Beq(R2, R0, else_label)] @
+       (exp2mips vm e2) @ [Sne(R2, R2, R0); J end_label; Label else_label] @
+       [Li(R2, Word32.fromInt 0); Label end_label])
+  | Ast.Or (e1, e2) ->
+    (let else_label = new_label() in
+     let end_label = new_label() in
+     (exp2mips vm e1) @ [Beq(R2, R0, else_label)] @
+       [Li(R2, Word32.fromInt 1); J end_label; Label else_label] @
+       (exp2mips vm e2) @ [Sne(R2, R2, R0); Label end_label])
+  | Ast.Assign (x, e1) -> (exp2mips vm e1) @ [Sw(R2, R30, Word32.fromInt (Varmap.lookup_var vm x))]
+  | Ast.Call (x, args) ->
+    (let argc = List.length args in
+     let rec push_args args accum =
+       (match args with
+	 [] -> accum
+       | hd::tl -> push_args tl ((exp2mips vm hd) @ [Add (R29, R29, Immed (Word32.fromInt (- 4))); Sw (R2, R29, (Word32.fromInt 0))] @ accum)) in
+     (push_args args []) @ [Jal (mangle x); Add (R29, R29, Immed (Word32.fromInt (4 * argc)))])
 
 let rec compile_func_body vm funcname ((body,pos):Ast.stmt) : Mips.inst list =
   match body with
