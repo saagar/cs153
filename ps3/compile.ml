@@ -35,10 +35,28 @@ end
 (* this is also used to resolve variable name conflicts (shadowing) *)
 let mangle funcname = "_sdej_" ^ funcname
 
-let exp2mips vm ((e,_):Ast.exp) : Mips.inst list =
-  raise IMPLEMENT_ME
+let rec exp2mips vm ((e,_):Ast.exp) : Mips.inst list =
+  match e with
+    Ast.Int x -> [Li(R2, Word32.fromInt x)]
+  | Ast.Var x -> [Lw(R2, R30, Word32.fromInt (Varmap.lookup_var vm x))]
+  | Ast.Binop (e1, b, e2) ->
+    (exp2mips vm e1) @ [Add (R29, R29, Immed (Word32.fromInt (- 4))); Sw(R2, R29, (Word32.fromInt 0))] @
+      (exp2mips vm e2) @ [Lw(R3, R29, (Word32.fromInt 0)); Add (R29, R29, Immed (Word32.fromInt 4))] @
+      (match b with
+	Ast.Plus  -> [Add(R2, R3, Reg R2)]
+      | Ast.Minus -> [Sub(R2, R3, R2)]
+      | Ast.Times -> [Mul(R2, R3, R2)]
+      | Ast.Div -> [Div(R2, R3, R2)]
+      | Ast.Eq -> [Seq(R2, R3, R2)]
+      | Ast.Neq -> [Sne(R2, R3, R2)]
+      | Ast.Lt -> [Slt(R2, R3, Reg R2)]
+      | Ast.Lte -> [Sle(R2, R3, R2)]
+      | Ast.Gt -> [Sgt(R2, R3, R2)]
+      | Ast.Gte -> [Sge(R2, R3, R2)])
+  | Ast.Not e1 -> (exp2mips vm e1) @ [Seq(R2, R2, R0)]
+  | _ -> []
 
-let rec compile_func_body vm funcname ((body,_):Ast.stmt) : Mips.inst list =
+let rec compile_func_body vm funcname ((body,pos):Ast.stmt) : Mips.inst list =
   match body with
     Ast.Exp e -> exp2mips vm e
   | Ast.Seq (s1, s2) -> (compile_func_body vm funcname s1) @ (compile_func_body vm funcname s2)
@@ -56,7 +74,7 @@ let rec compile_func_body vm funcname ((body,_):Ast.stmt) : Mips.inst list =
   | Ast.For (e1, e2, e3, s1) ->
     compile_func_body vm funcname (Ast.Seq ((Ast.Exp e1, 0), (Ast.While (e2, (Ast.Seq (s1, (Ast.Exp e3, 0)), 0)), 0)), 0)
   | Ast.Return e -> (exp2mips vm e) @ [J (funcname ^ "epilogue")]
-  | _ -> raise IMPLEMENT_ME
+  | Ast.Let (x, e, s1) -> (exp2mips vm (Ast.Assign(x, e), pos)) @ (compile_func_body vm funcname s1)
 
 (* mangle all occurrences of v in a stmt *)
 let rec var_rename ((s,pos):Ast.stmt) v =
