@@ -35,45 +35,50 @@ end
 (* this is also used to resolve variable name conflicts (shadowing) *)
 let mangle funcname = "_sdej_" ^ funcname
 
+exception BadProgram
+let error s = (print_string ("Error: "^ s); raise BadProgram)
+
 let rec exp2mips vm ((e,_):Ast.exp) : Mips.inst list =
-  match e with
-    Ast.Int x -> [Li(R2, Word32.fromInt x)]
-  | Ast.Var x -> [Lw(R2, R30, Word32.fromInt (Varmap.lookup_var vm x))]
-  | Ast.Binop (e1, b, e2) ->
-    (exp2mips vm e1) @ [Add (R29, R29, Immed (Word32.fromInt (- 4))); Sw(R2, R29, (Word32.fromInt 0))] @
-      (exp2mips vm e2) @ [Lw(R3, R29, (Word32.fromInt 0)); Add (R29, R29, Immed (Word32.fromInt 4))] @
-      (match b with
-	Ast.Plus  -> [Add(R2, R3, Reg R2)]
-      | Ast.Minus -> [Sub(R2, R3, R2)]
-      | Ast.Times -> [Mul(R2, R3, R2)]
-      | Ast.Div -> [Div(R2, R3, R2)]
-      | Ast.Eq -> [Seq(R2, R3, R2)]
-      | Ast.Neq -> [Sne(R2, R3, R2)]
-      | Ast.Lt -> [Slt(R2, R3, Reg R2)]
-      | Ast.Lte -> [Sle(R2, R3, R2)]
-      | Ast.Gt -> [Sgt(R2, R3, R2)]
-      | Ast.Gte -> [Sge(R2, R3, R2)])
-  | Ast.Not e1 -> (exp2mips vm e1) @ [Seq(R2, R2, R0)]
-  | Ast.And (e1, e2) ->
-    (let else_label = new_label() in
-     let end_label = new_label() in
-     (exp2mips vm e1) @ [Beq(R2, R0, else_label)] @
-       (exp2mips vm e2) @ [Sne(R2, R2, R0); J end_label; Label else_label] @
-       [Li(R2, Word32.fromInt 0); Label end_label])
-  | Ast.Or (e1, e2) ->
-    (let else_label = new_label() in
-     let end_label = new_label() in
-     (exp2mips vm e1) @ [Beq(R2, R0, else_label)] @
-       [Li(R2, Word32.fromInt 1); J end_label; Label else_label] @
-       (exp2mips vm e2) @ [Sne(R2, R2, R0); Label end_label])
-  | Ast.Assign (x, e1) -> (exp2mips vm e1) @ [Sw(R2, R30, Word32.fromInt (Varmap.lookup_var vm x))]
-  | Ast.Call (x, args) ->
-    (let argc = List.length args in
-     let rec push_args args accum =
-       (match args with
-	 [] -> accum
-       | hd::tl -> push_args tl ((exp2mips vm hd) @ [Add (R29, R29, Immed (Word32.fromInt (- 4))); Sw (R2, R29, (Word32.fromInt 0))] @ accum)) in
-     (push_args args []) @ [Jal (mangle x); Add (R29, R29, Immed (Word32.fromInt (4 * argc)))])
+  try
+    (match e with
+      Ast.Int x -> [Li(R2, Word32.fromInt x)]
+    | Ast.Var x -> [Lw(R2, R30, Word32.fromInt (Varmap.lookup_var vm x))]
+    | Ast.Binop (e1, b, e2) ->
+      (exp2mips vm e1) @ [Add (R29, R29, Immed (Word32.fromInt (- 4))); Sw(R2, R29, (Word32.fromInt 0))] @
+	(exp2mips vm e2) @ [Lw(R3, R29, (Word32.fromInt 0)); Add (R29, R29, Immed (Word32.fromInt 4))] @
+	(match b with
+	  Ast.Plus  -> [Add(R2, R3, Reg R2)]
+	| Ast.Minus -> [Sub(R2, R3, R2)]
+	| Ast.Times -> [Mul(R2, R3, R2)]
+	| Ast.Div -> [Div(R2, R3, R2)]
+	| Ast.Eq -> [Seq(R2, R3, R2)]
+	| Ast.Neq -> [Sne(R2, R3, R2)]
+	| Ast.Lt -> [Slt(R2, R3, Reg R2)]
+	| Ast.Lte -> [Sle(R2, R3, R2)]
+	| Ast.Gt -> [Sgt(R2, R3, R2)]
+	| Ast.Gte -> [Sge(R2, R3, R2)])
+    | Ast.Not e1 -> (exp2mips vm e1) @ [Seq(R2, R2, R0)]
+    | Ast.And (e1, e2) ->
+      (let else_label = new_label() in
+       let end_label = new_label() in
+       (exp2mips vm e1) @ [Beq(R2, R0, else_label)] @
+	 (exp2mips vm e2) @ [Sne(R2, R2, R0); J end_label; Label else_label] @
+	 [Li(R2, Word32.fromInt 0); Label end_label])
+    | Ast.Or (e1, e2) ->
+      (let else_label = new_label() in
+       let end_label = new_label() in
+       (exp2mips vm e1) @ [Beq(R2, R0, else_label)] @
+	 [Li(R2, Word32.fromInt 1); J end_label; Label else_label] @
+	 (exp2mips vm e2) @ [Sne(R2, R2, R0); Label end_label])
+    | Ast.Assign (x, e1) -> (exp2mips vm e1) @ [Sw(R2, R30, Word32.fromInt (Varmap.lookup_var vm x))]
+    | Ast.Call (x, args) ->
+      (let argc = List.length args in
+       let rec push_args args accum =
+	 (match args with
+	   [] -> accum
+	 | hd::tl -> push_args tl ((exp2mips vm hd) @ [Add (R29, R29, Immed (Word32.fromInt (- 4))); Sw (R2, R29, (Word32.fromInt 0))] @ accum)) in
+       (push_args args []) @ [Jal (mangle x); Add (R29, R29, Immed (Word32.fromInt (4 * argc)))])
+    ) with Varmap.NotFound -> error "Unbound variables"
 
 let rec compile_func_body vm funcname ((body,pos):Ast.stmt) : Mips.inst list =
   match body with
