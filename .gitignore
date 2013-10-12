@@ -31,3 +31,6 @@ ps2/lex.ml
 ps2/parse.ml
 ps2/compiled
 ps2/ps2
+
+# pset 3 ignore files
+ps3/compiled
