@@ -176,7 +176,7 @@ let rec compile (p:Ast.program) : result =
     match prog with
       [] -> []
     | (Ast.Fn(f))::tl -> compile_func f @ compile_code tl in
-  { code=((Mips.J (mangle "main")) :: compile_code p); data=[] }
+  { code=(Mips.Label "main" :: (Mips.J (mangle "main")) :: compile_code p); data=[] }
 
 let result2string (res:result) : string = 
     let code = res.code in
