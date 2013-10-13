@@ -132,7 +132,7 @@ let rec var_rename ((s,pos):Ast.stmt) v =
     | Ast.Int _ -> e
     | Ast.Var x -> if (x = v) then (Ast.Var (mangle x), pos) else e
     | Ast.Binop (e1, op, e2) -> (Ast.Binop (var_rename_exp e1, op, var_rename_exp e2), pos)
-    | Ast.Not e -> var_rename_exp e
+    | Ast.Not e -> (Ast.Not (var_rename_exp e), pos)
     | Ast.And (e1, e2) -> (Ast.And (var_rename_exp e1, var_rename_exp e2), pos)
     | Ast.Or (e1, e2) -> (Ast.Or (var_rename_exp e1, var_rename_exp e2), pos)
     | Ast.Call (f, arglist) -> (Ast.Call (f, List.map var_rename_exp arglist), pos) in
