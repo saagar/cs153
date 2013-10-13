@@ -82,12 +82,25 @@ let rec exp2mips vm ((e,_):Ast.exp) : Mips.inst list =
        else if Varmap.lookup_var !funcmap (mangle x) != argc
        then error "Incorrect number of arguments\n"
        else
-	 let rec push_args args accum =
+	 let rec push_args args accum num =
 	   (match args with
 	     [] -> accum
-	   | hd::tl -> push_args tl ((exp2mips vm hd) @ [Add (R29, R29, Immed (Word32.fromInt (- 4)));
-							 Sw (R2, R29, (Word32.fromInt 0))] @ accum)) in
-	 (push_args args []) @ [Jal (mangle x); Add (R29, R29, Immed (Word32.fromInt (4 * argc)))])
+	   | hd::tl ->
+	     (if (num = 1)
+	      then push_args tl ((exp2mips vm hd) @ [Add (R29, R29, Immed (Word32.fromInt (- 4)));
+						     Add (R4, R2, Immed (Word32.fromInt 0))] @ accum) (num + 1)
+	      else if (num = 2)
+	      then push_args tl ((exp2mips vm hd) @ [Add (R29, R29, Immed (Word32.fromInt (- 4)));
+						     Add (R5, R2, Immed (Word32.fromInt 0))] @ accum) (num + 1)
+	      else if (num = 3)
+	      then push_args tl ((exp2mips vm hd) @ [Add (R29, R29, Immed (Word32.fromInt (- 4)));
+						     Add (R6, R2, Immed (Word32.fromInt 0))] @ accum) (num + 1)
+	      else if (num = 4)
+	      then push_args tl ((exp2mips vm hd) @ [Add (R29, R29, Immed (Word32.fromInt (- 4)));
+						     Add (R7, R2, Immed (Word32.fromInt 0))] @ accum) (num + 1)
+	      else push_args tl ((exp2mips vm hd) @ [Add (R29, R29, Immed (Word32.fromInt (- 4)));
+						     Sw (R2, R29, (Word32.fromInt 0))] @ accum) (num + 1))) in
+	 (push_args args [] 1) @ [Jal (mangle x); Add (R29, R29, Immed (Word32.fromInt (4 * argc)))])
     ) with Varmap.NotFound -> error "Unbound variable\n"
 
 let rec compile_func_body vm funcname ((body,pos):Ast.stmt) : Mips.inst list =
@@ -173,7 +186,12 @@ let compile_func (f:Ast.funcsig) : Mips.inst list =
 		  Add (R29, R29, Immed (Word32.fromInt (!framesize * (- 4))));
 		  Sw (R31, R29, (Word32.fromInt ((!framesize * 4) - 4)));
 		  Sw (R30, R29, (Word32.fromInt ((!framesize * 4) - 8)));
-		  Add (R30, R29, Immed (Word32.fromInt ((!framesize * 4) - 4)))] in
+		  Add (R30, R29, Immed (Word32.fromInt ((!framesize * 4) - 4)))] @
+    (let argc = Varmap.lookup_var !funcmap name in
+     (if argc > 0 then [Sw (R4, R30, Word32.fromInt 4)] else []) @
+       (if argc > 1 then [Sw (R5, R30, Word32.fromInt 8)] else []) @
+       (if argc > 2 then [Sw (R6, R30, Word32.fromInt 12)] else []) @
+       (if argc > 3 then [Sw (R7, R30, Word32.fromInt 16)] else [])) in
   let epilogue = [Label (name ^ "epilogue");
 		  Lw (R31, R30, (Word32.fromInt 0));
 		  Lw (R30, R30, (Word32.fromInt (- 4)));
