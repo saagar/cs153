@@ -32,17 +32,15 @@ struct
   let member vm x = (try (lookup_var vm x; true) with NotFound -> false)
 end
 
-module FunctionSet = Set.Make(struct
-                                type t = Ast.var
-                                let compare = String.compare
-                              end)
-
 (* prefix that will be added to all function names to avoid conflict with MIPS instructions *)
 (* this is also used to resolve variable name conflicts (shadowing) *)
 let mangle funcname = "_sdej_" ^ funcname
 
 exception BadProgram
 let error s = (print_string ("Error: "^ s); raise BadProgram)
+
+(* funcmap maps function names to the number of arguments *)
+let funcmap = ref (Varmap.empty_varmap ())
 
 let rec exp2mips vm ((e,_):Ast.exp) : Mips.inst list =
   try
@@ -79,12 +77,18 @@ let rec exp2mips vm ((e,_):Ast.exp) : Mips.inst list =
     | Ast.Assign (x, e1) -> (exp2mips vm e1) @ [Sw(R2, R30, Word32.fromInt (Varmap.lookup_var vm x))]
     | Ast.Call (x, args) ->
       (let argc = List.length args in
-       let rec push_args args accum =
-	 (match args with
-	   [] -> accum
-	 | hd::tl -> push_args tl ((exp2mips vm hd) @ [Add (R29, R29, Immed (Word32.fromInt (- 4))); Sw (R2, R29, (Word32.fromInt 0))] @ accum)) in
-       (push_args args []) @ [Jal (mangle x); Add (R29, R29, Immed (Word32.fromInt (4 * argc)))])
-    ) with Varmap.NotFound -> error "Unbound variables"
+       if Varmap.member !funcmap (mangle x) = false
+       then error "Unbound function\n"
+       else if Varmap.lookup_var !funcmap (mangle x) != argc
+       then error "Incorrect number of arguments\n"
+       else
+	 let rec push_args args accum =
+	   (match args with
+	     [] -> accum
+	   | hd::tl -> push_args tl ((exp2mips vm hd) @ [Add (R29, R29, Immed (Word32.fromInt (- 4)));
+							 Sw (R2, R29, (Word32.fromInt 0))] @ accum)) in
+	 (push_args args []) @ [Jal (mangle x); Add (R29, R29, Immed (Word32.fromInt (4 * argc)))])
+    ) with Varmap.NotFound -> error "Unbound variable\n"
 
 let rec compile_func_body vm funcname ((body,pos):Ast.stmt) : Mips.inst list =
   match body with
@@ -183,7 +187,10 @@ let rec compile (p:Ast.program) : result =
   let rec compile_code (prog:Ast.program) : Mips.inst list =
     match prog with
       [] -> []
-    | (Ast.Fn(f))::tl -> compile_func f @ compile_code tl in
+    | (Ast.Fn(f))::tl -> (if Varmap.member !funcmap (mangle f.Ast.name)
+      then error "Function name collision\n"
+      else funcmap := Varmap.insert_var !funcmap (mangle f.Ast.name) (List.length f.Ast.args);
+			  compile_func f @ compile_code tl) in
   { code=(Mips.Label "main" :: (Mips.J (mangle "main")) :: compile_code p); data=[] }
 
 let result2string (res:result) : string = 
