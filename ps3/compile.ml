@@ -32,6 +32,11 @@ struct
   let member vm x = (try (lookup_var vm x; true) with NotFound -> false)
 end
 
+module FunctionSet = Set.Make(struct
+                                type t = Ast.var
+                                let compare = String.compare
+                              end)
+
 (* prefix that will be added to all function names to avoid conflict with MIPS instructions *)
 (* this is also used to resolve variable name conflicts (shadowing) *)
 let mangle funcname = "_sdej_" ^ funcname
@@ -121,7 +126,7 @@ let rec var_rename ((s,pos):Ast.stmt) v =
   | Ast.While (e, s1) -> (Ast.While(var_rename_exp e, var_rename s1 v), pos)
   | Ast.For (e1, e2, e3, s1) -> (Ast.For(var_rename_exp e1, var_rename_exp e2, var_rename_exp e3, var_rename s1 v), pos)
   | Ast.Return e1 -> (Ast.Return(var_rename_exp e1), pos)
-  | Ast.Let (x, e, s1) -> (Ast.Let((if (x = v) then mangle v else v), var_rename_exp e, var_rename s1 v), pos)
+  | Ast.Let (x, e, s1) -> (Ast.Let((if (x = v) then mangle v else x), var_rename_exp e, var_rename s1 v), pos)
 
 let compile_func (f:Ast.funcsig) : Mips.inst list =
   let name = mangle f.Ast.name in
@@ -142,12 +147,15 @@ let compile_func (f:Ast.funcsig) : Mips.inst list =
     let (body, pos) = s in
     match body with
       Ast.Exp _ -> (vm, offset, s)
-    | Ast.Let (v, _, s) -> (framesize := !framesize + 1;
-			    if Varmap.member vm v
-			    then (map_locals (var_rename s v) (Varmap.insert_var vm (mangle v) offset) (offset - 4))
-			    else (map_locals s (Varmap.insert_var vm v offset) (offset - 4)))
-    | Ast.For (_, _, _, s) -> map_locals s vm offset
-    | Ast.While (_, s) -> map_locals s vm offset
+    | Ast.Let (v, e, s1) -> (framesize := !framesize + 1;
+        if Varmap.member vm v
+	then map_locals (var_rename s v) vm offset
+	else (let (v1, o1, renamed_s1) = map_locals s1 (Varmap.insert_var vm v offset) (offset - 4) in
+	      (v1, o1, (Ast.Let(v, e, renamed_s1), pos))))
+    | Ast.For (e1, e2, e3, s1) -> (let (v1, o1, renamed_s1) = map_locals s1 vm offset in
+				   (v1, o1, (Ast.For(e1, e2, e3, renamed_s1), pos)))
+    | Ast.While (e, s1) -> (let (v1, o1, renamed_s1) = map_locals s1 vm offset in
+			    (v1, o1, (Ast.While(e, renamed_s1), pos)))
     | Ast.If (e, s1, s2) -> (let (v1, o1, renamed_s1) = map_locals s1 vm offset in
 			     let (v2, o2, renamed_s2) = map_locals s2 v1 o1 in
 			     (v2, o2, (Ast.If(e, renamed_s1, renamed_s2), pos)))
