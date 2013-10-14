@@ -1,0 +1,8 @@
+main(){
+  let x = 5; 
+  {
+    let x = 6;
+    x = x+2;
+  }
+  return x; 
+}
