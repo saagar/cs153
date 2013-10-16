@@ -195,8 +195,9 @@ let compile_func (f:Ast.funcsig) : Mips.inst list =
   let epilogue = [Label (name ^ "epilogue");
 		  Lw (R31, R30, (Word32.fromInt 0));
 		  Lw (R30, R30, (Word32.fromInt (- 4)));
-		  Add (R29, R29, Immed (Word32.fromInt (!framesize * 4)));
-		  Jr R31] in
+      Add (R29, R29, Immed (Word32.fromInt (!framesize * 4)))]
+    @ (if name = mangle "main" then [Add (R4, R2, Immed(Word32.fromInt(0)));J "printInt"] else []) 
+  		@ [Jr R31] in
   let func_body = compile_func_body vm3 name new_body in
   prologue @ func_body @ epilogue
 
