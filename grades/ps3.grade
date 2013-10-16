@@ -1,0 +1,16 @@
+Part 1 (compiler): 7.7/8 Points
+
+Comments:
+---------
+Your score: 51/53
+
+output: [==========] Running Canned Tests
+
+Error in file: 11let_02shadow_test.asm
+expected: 7
+actual:  4
+Error in file: 19cish_02adder_test.asm
+expected: 5
+actual:  3
+
+output: [==========] Completed
