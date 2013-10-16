@@ -17,6 +17,9 @@ ps8.zip
 *.cmo
 *.mli
 
+# grades
+grades/total.grade
+
 # ignore the 153 .git for now.
 *.git153
 
