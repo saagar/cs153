@@ -77,11 +77,11 @@ stmt :
       let e3 = match $7 with None -> (Int(0), rhs 7) | Some e -> e in
       (For(e1,e2,e3,$9), rhs 1)
     }
-| LET ID EQ yexp SEMI stmt { (Let($2,$4,$6), rhs 1) }
 
 stmtlist :
   stmt { $1 }
 | stmt stmtlist { (Seq($1,$2), rhs 1) }
+| LET ID EQ yexp SEMI stmtlist { (Let($2,$4,$6), rhs 1) }
 
 expopt : 
   { None }
