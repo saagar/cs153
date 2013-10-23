@@ -78,10 +78,7 @@ and compile_helper (e:Scish_ast.exp) (env:Cish_ast.var -> int) : Cish_ast.stmt =
       else var_lookup_helper (index - 1) (Cish_ast.Load((Cish_ast.Binop(accum, Cish_ast.Plus, (Cish_ast.Int(4), 0)), 0)), 0)) in
     let var_lookup index = var_lookup_helper index (Cish_ast.Var("dynenv"), 0) in
     (Cish_ast.Exp((Cish_ast.Assign("result", var_lookup n), 0)), 0)
-  | Scish_ast.Int i -> 
-      let storeint = (Cish_ast.Assign("result", (Cish_ast.Int(i),0)), 0)
-      in
-      stmtconcat [expstmt storeint]
+  | Scish_ast.Int i -> expstmt (Cish_ast.Assign("result", (Cish_ast.Int(i), 0)), 0)
   | Scish_ast.PrimApp (op, exps) -> 
       (match op with
       | Scish_ast.Plus -> 
@@ -109,6 +106,9 @@ and compile_helper (e:Scish_ast.exp) (env:Cish_ast.var -> int) : Cish_ast.stmt =
   | Scish_ast.If (e1, e2, e3) -> raise Unimplemented
 
 let rec compile_exp (e:Scish_ast.exp) : Cish_ast.program =
-(*  match e with
-    App (e1, e2) ->
-*) raise Unimplemented
+  let empty_env = fun x -> raise UnboundVariable in
+  let evalexp = compile_helper e empty_env in
+  let stmts = (Cish_ast.Let("result", (Cish_ast.Int 0, 0), (Cish_ast.Seq(evalexp, (Cish_ast.Return((Cish_ast.Var("result"), 0)), 0)), 0)), 0) in
+  let body = (Cish_ast.Let("dynenv", (Cish_ast.Int 0, 0), stmts), 0) in
+  let main = Cish_ast.Fn({ Cish_ast.name="main"; Cish_ast.args=([]); Cish_ast.body=body; Cish_ast.pos=0 }) in
+  main :: (!function_bodies)
