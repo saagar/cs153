@@ -1,0 +1,7 @@
+ /*
+  * testing the closure
+  */
+
+(((lambda (x) (lambda (y) (if (= x y) (+ x y) (if (< (- x y) 0) x y)))) 17) 15)
+
+

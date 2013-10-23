@@ -1,0 +1,5 @@
+ /*
+  * testing the closure
+  */
+
+(((lambda (x) (lambda (x) (+ x x))) 2) 5)

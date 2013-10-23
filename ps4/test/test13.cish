@@ -1,0 +1,5 @@
+ /*
+  * testing the closure
+  */
+
+(if 0 2 3)

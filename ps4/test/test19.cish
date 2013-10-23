@@ -1,0 +1,5 @@
+ /*
+  * testing Cons
+  */
+
+(let (x (cons 42 13)) (snd x))
