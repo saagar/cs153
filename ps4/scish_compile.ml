@@ -67,27 +67,50 @@ and compile_helper (e:Scish_ast.exp) (env:Cish_ast.var -> int) : Cish_ast.stmt =
     (Cish_ast.Exp((Cish_ast.Assign("result", var_lookup n), 0)), 0)
   | Scish_ast.Int i -> expstmt (Cish_ast.Assign("result", (Cish_ast.Int(i), 0)), 0)
   | Scish_ast.PrimApp (op, exps) ->
-    let prim_eval e cish_op localenv =
-      (match e with
-      | e1::e2::[] ->
-        let tmp1 = new_label () in
-        let evale1 = compile_helper e1 localenv in
-        let storee1 = (Cish_ast.Assign(tmp1, (Cish_ast.Var("result"), 0)), 0) in
-        let evale2 = compile_helper e2 localenv in
-        let storee2 = (Cish_ast.Assign("result", (Cish_ast.Binop((Cish_ast.Var(tmp1), 0), cish_op, (Cish_ast.Var("result"), 0)), 0)), 0) in
-        let stmts = stmtconcat [evale1; expstmt storee1; evale2; expstmt storee2] in 
-        (Cish_ast.Let(tmp1, (Cish_ast.Int 0, 0), stmts), 0)
+    let prim_eval cish_op =
+      (match exps with
+        e1::e2::[] ->
+          let tmp1 = new_label () in
+          let evale1 = compile_helper e1 env in
+          let storee1 = (Cish_ast.Assign(tmp1, (Cish_ast.Var("result"), 0)), 0) in
+          let evale2 = compile_helper e2 env in
+          let storee2 = (Cish_ast.Assign("result", (Cish_ast.Binop((Cish_ast.Var(tmp1), 0), cish_op, (Cish_ast.Var("result"), 0)), 0)), 0) in
+          let stmts = stmtconcat [evale1; expstmt storee1; evale2; expstmt storee2] in 
+          (Cish_ast.Let(tmp1, (Cish_ast.Int 0, 0), stmts), 0)
       | _ -> raise InvalidArgCount) in
     (match op with
-    | Scish_ast.Plus -> prim_eval exps Cish_ast.Plus env
-    | Scish_ast.Minus -> prim_eval exps Cish_ast.Minus env 
-    | Scish_ast.Times -> prim_eval exps Cish_ast.Times env
-    | Scish_ast.Div -> prim_eval exps Cish_ast.Div env
-    | Scish_ast.Cons -> raise Unimplemented
-    | Scish_ast.Fst -> raise Unimplemented
-    | Scish_ast.Snd -> raise Unimplemented
-    | Scish_ast.Eq -> prim_eval exps Cish_ast.Eq env
-    | Scish_ast.Lt -> prim_eval exps Cish_ast.Lt env)
+    | Scish_ast.Plus -> prim_eval Cish_ast.Plus
+    | Scish_ast.Minus -> prim_eval Cish_ast.Minus
+    | Scish_ast.Times -> prim_eval Cish_ast.Times
+    | Scish_ast.Div -> prim_eval Cish_ast.Div
+    | Scish_ast.Cons ->
+      (match exps with
+	e1::e2::[] ->
+	  let t0 = new_label () in
+	  let mlc = (Cish_ast.Assign(t0, (Cish_ast.Malloc((Cish_ast.Int 8, 0)), 0)), 0) in
+	  let evale1 = compile_helper e1 env in
+	  let storee1 = (Cish_ast.Store((Cish_ast.Var(t0), 0), (Cish_ast.Var("result"), 0)), 0) in
+	  let evale2 = compile_helper e2 env in
+	  let storee2 = (Cish_ast.Store((plus4 t0), (Cish_ast.Var("result"), 0)), 0) in
+	  let ret = (Cish_ast.Assign("result", (Cish_ast.Var(t0), 0)), 0) in
+	  stmtconcat [expstmt mlc; evale1; expstmt storee1; evale2; expstmt storee2; expstmt ret]
+      | _ -> raise InvalidArgCount)
+    | Scish_ast.Fst ->
+      (match exps with
+	e1::[] ->
+	  let evale1 = compile_helper e1 env in
+	  let getfirst = (Cish_ast.Load((Cish_ast.Var("result"), 0)), 0) in
+	  stmtconcat [evale1; expstmt getfirst]
+      | _ -> raise InvalidArgCount)
+    | Scish_ast.Snd ->
+      (match exps with
+	e1::[] ->
+	  let evale1 = compile_helper e1 env in
+	  let getsecond = (Cish_ast.Load(plus4 "result"), 0) in
+	  stmtconcat [evale1; expstmt getsecond]
+      | _ -> raise InvalidArgCount)
+    | Scish_ast.Eq -> prim_eval Cish_ast.Eq
+    | Scish_ast.Lt -> prim_eval Cish_ast.Lt)
   | Scish_ast.If (e1, e2, e3) ->
     let evalcond = compile_helper e1 env in
     let evale2 = compile_helper e2 env in
