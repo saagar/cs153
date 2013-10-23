@@ -13,19 +13,6 @@ let error s = (print_string s; print_string "\n"; raise Error)
 exception UnboundVariable
 exception InvalidArgCount
 
-module Varmap =
-struct
-  type varmap = Cish_ast.var -> int
-  exception NotFound
-  let empty_varmap () = fun y -> raise NotFound
-  let insert_var vm x i = fun y -> if (y = x) then i else vm y
-  let lookup_var vm x = vm x
-  let member vm x = (try (lookup_var vm x; true) with NotFound -> false)
-end
-
-(*let indices : (Cish_ast.var -> int) ref = ref (fun y -> raise UnboundVariable)
-let *)
-
 (* generate fresh labels *)
 let label_counter = ref 0
 let new_int() = (label_counter := (!label_counter) + 1; !label_counter)
@@ -79,35 +66,38 @@ and compile_helper (e:Scish_ast.exp) (env:Cish_ast.var -> int) : Cish_ast.stmt =
     let var_lookup index = var_lookup_helper index (Cish_ast.Var("dynenv"), 0) in
     (Cish_ast.Exp((Cish_ast.Assign("result", var_lookup n), 0)), 0)
   | Scish_ast.Int i -> expstmt (Cish_ast.Assign("result", (Cish_ast.Int(i), 0)), 0)
-  | Scish_ast.PrimApp (op, exps) -> 
-      (match op with
-      | Scish_ast.Plus -> 
-           (match exps with
-           | e1::e2::[] -> 
-               let tmp1 = new_label() in
-               let evale1 = compile_helper e1 env in
-               let storee1 = (Cish_ast.Assign(tmp1, (Cish_ast.Var("result"),0)),0) in
-               let evale2 = compile_helper e2 env in
-               let storee2 = 
-               (Cish_ast.Assign("result",
-                  (Cish_ast.Binop((Cish_ast.Var(tmp1),0) , Cish_ast.Plus,(Cish_ast.Var("result"),0)),0)),0)
-               in
-               stmtconcat [evale1; expstmt storee1; evale2; expstmt storee2]
-           | _ -> raise InvalidArgCount)
+  | Scish_ast.PrimApp (op, exps) ->
+    (match op with
+    | Scish_ast.Plus ->
+      (match exps with
+      | e1::e2::[] -> 
+        let tmp1 = new_label() in
+        let evale1 = compile_helper e1 env in
+        let storee1 = (Cish_ast.Assign(tmp1, (Cish_ast.Var("result"),0)),0) in
+        let evale2 = compile_helper e2 env in
+        let storee2 = 
+          (Cish_ast.Assign("result",
+			   (Cish_ast.Binop((Cish_ast.Var(tmp1),0) , Cish_ast.Plus,(Cish_ast.Var("result"),0)),0)),0)
+        in
+        stmtconcat [evale1; expstmt storee1; evale2; expstmt storee2]
+      | _ -> raise InvalidArgCount)
       (*| Minus ->
-      | Times ->
-      | Div ->
-      | Cons ->
-      | Fst ->
-      | Snd ->
-      | Eq ->
-      | Lt ->*)
-      | _ -> raise Unimplemented)
+	| Times ->
+	| Div ->
+	| Cons ->
+	| Fst ->
+	| Snd ->
+	| Eq ->
+	| Lt ->*)
+    | _ -> raise Unimplemented)
   | Scish_ast.If (e1, e2, e3) -> raise Unimplemented
 
 let rec compile_exp (e:Scish_ast.exp) : Cish_ast.program =
   let empty_env = fun x -> raise UnboundVariable in
-  let evalexp = compile_helper e empty_env in
+  let evalexp =
+    (try (compile_helper e empty_env) with
+      UnboundVariable -> error "Unbound variable"
+    | InvalidArgCount -> error "Incorrect number of args for primitive operation") in
   let stmts = (Cish_ast.Let("result", (Cish_ast.Int 0, 0), (Cish_ast.Seq(evalexp, (Cish_ast.Return((Cish_ast.Var("result"), 0)), 0)), 0)), 0) in
   let body = (Cish_ast.Let("dynenv", (Cish_ast.Int 0, 0), stmts), 0) in
   let main = Cish_ast.Fn({ Cish_ast.name="main"; Cish_ast.args=([]); Cish_ast.body=body; Cish_ast.pos=0 }) in
