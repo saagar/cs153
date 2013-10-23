@@ -100,14 +100,14 @@ and compile_helper (e:Scish_ast.exp) (env:Cish_ast.var -> int) : Cish_ast.stmt =
       (match exps with
 	e1::[] ->
 	  let evale1 = compile_helper e1 env in
-	  let getfirst = (Cish_ast.Load((Cish_ast.Var("result"), 0)), 0) in
+	  let getfirst = (Cish_ast.Assign("result", (Cish_ast.Load((Cish_ast.Var("result"), 0)), 0)), 0) in
 	  stmtconcat [evale1; expstmt getfirst]
       | _ -> raise InvalidArgCount)
     | Scish_ast.Snd ->
       (match exps with
 	e1::[] ->
 	  let evale1 = compile_helper e1 env in
-	  let getsecond = (Cish_ast.Load(plus4 "result"), 0) in
+	  let getsecond = (Cish_ast.Assign("result", (Cish_ast.Load(plus4 "result"), 0)), 0) in
 	  stmtconcat [evale1; expstmt getsecond]
       | _ -> raise InvalidArgCount)
     | Scish_ast.Eq -> prim_eval Cish_ast.Eq
