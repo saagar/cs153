@@ -40,3 +40,10 @@ ps3/compiled
 ps3/lex.ml
 ps3/parse.ml
 ps3/ps3
+
+# pset 4 ignore files
+ps4/cish_lex.ml
+ps4/cish_parse.ml
+ps4/ps4_*
+ps4/scish_lex.ml
+ps4/scish_parse.ml
