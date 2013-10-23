@@ -71,15 +71,15 @@ and compile_helper (e:Scish_ast.exp) (env:Cish_ast.var -> int) : Cish_ast.stmt =
     | Scish_ast.Plus ->
       (match exps with
       | e1::e2::[] -> 
-        let tmp1 = new_label() in
+        let tmp1 = new_label () in
         let evale1 = compile_helper e1 env in
-        let storee1 = (Cish_ast.Assign(tmp1, (Cish_ast.Var("result"),0)),0) in
+        let storee1 = (Cish_ast.Assign(tmp1, (Cish_ast.Var("result"), 0)), 0) in
         let evale2 = compile_helper e2 env in
         let storee2 = 
-          (Cish_ast.Assign("result",
-			   (Cish_ast.Binop((Cish_ast.Var(tmp1),0) , Cish_ast.Plus,(Cish_ast.Var("result"),0)),0)),0)
+          (Cish_ast.Assign("result", (Cish_ast.Binop((Cish_ast.Var(tmp1),0), Cish_ast.Plus,(Cish_ast.Var("result"),0)),0)),0)
         in
-        stmtconcat [evale1; expstmt storee1; evale2; expstmt storee2]
+        let stmts = stmtconcat [evale1; expstmt storee1; evale2; expstmt storee2] in
+	(Cish_ast.Let(tmp1, (Cish_ast.Int 0, 0), stmts), 0)
       | _ -> raise InvalidArgCount)
       (*| Minus ->
 	| Times ->
@@ -90,7 +90,8 @@ and compile_helper (e:Scish_ast.exp) (env:Cish_ast.var -> int) : Cish_ast.stmt =
 	| Eq ->
 	| Lt ->*)
     | _ -> raise Unimplemented)
-  | Scish_ast.If (e1, e2, e3) -> raise Unimplemented
+  | Scish_ast.If (e1, e2, e3) ->
+(*    let *) raise Unimplemented
 
 let rec compile_exp (e:Scish_ast.exp) : Cish_ast.program =
   let empty_env = fun x -> raise UnboundVariable in
