@@ -93,7 +93,8 @@ and compile_helper (e:Scish_ast.exp) (env:Cish_ast.var -> int) : Cish_ast.stmt =
 	  let evale2 = compile_helper e2 env in
 	  let storee2 = (Cish_ast.Store((plus4 t0), (Cish_ast.Var("result"), 0)), 0) in
 	  let ret = (Cish_ast.Assign("result", (Cish_ast.Var(t0), 0)), 0) in
-	  stmtconcat [expstmt mlc; evale1; expstmt storee1; evale2; expstmt storee2; expstmt ret]
+	  let stmts = stmtconcat [expstmt mlc; evale1; expstmt storee1; evale2; expstmt storee2; expstmt ret] in
+	  (Cish_ast.Let(t0, (Cish_ast.Int 0, 0), stmts), 0)
       | _ -> raise InvalidArgCount)
     | Scish_ast.Fst ->
       (match exps with
