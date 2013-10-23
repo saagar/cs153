@@ -77,8 +77,19 @@ and compile_helper (e:Scish_ast.exp) (env:Cish_ast.var -> int) : Cish_ast.stmt =
       else var_lookup_helper (index - 1) (Cish_ast.Load((Cish_ast.Binop(accum, Cish_ast.Plus, (Cish_ast.Int(4), 0)), 0)), 0)) in
     let var_lookup index = var_lookup_helper index (Cish_ast.Var("dynenv"), 0) in
     (Cish_ast.Exp((Cish_ast.Assign("result", var_lookup n), 0)), 0)
-  | Scish_ast.Int i -> raise Unimplemented
-  | Scish_ast.PrimApp (op, exps) -> raise Unimplemented
+  | Scish_ast.Int i -> (Cish_ast.Assign("result", (Cish_ast.Int(i),0)), 0)
+  | Scish_ast.PrimApp (op, exps) -> 
+      match op with
+      | Plus -> 
+
+      | Minus ->
+      | Times ->
+      | Div ->
+      | Cons ->
+      | Fst ->
+      | Snd ->
+      | Eq ->
+      | Lt ->
   | Scish_ast.If (e1, e2, e3) -> raise Unimplemented
 
 let rec compile_exp (e:Scish_ast.exp) : Cish_ast.program =
