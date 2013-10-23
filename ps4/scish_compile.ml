@@ -11,6 +11,7 @@ exception Error
 let error s = (print_string s; print_string "\n"; raise Error)
 
 exception UnboundVariable
+exception InvalidArgCount
 
 module Varmap =
 struct
@@ -77,19 +78,34 @@ and compile_helper (e:Scish_ast.exp) (env:Cish_ast.var -> int) : Cish_ast.stmt =
       else var_lookup_helper (index - 1) (Cish_ast.Load((Cish_ast.Binop(accum, Cish_ast.Plus, (Cish_ast.Int(4), 0)), 0)), 0)) in
     let var_lookup index = var_lookup_helper index (Cish_ast.Var("dynenv"), 0) in
     (Cish_ast.Exp((Cish_ast.Assign("result", var_lookup n), 0)), 0)
-  | Scish_ast.Int i -> (Cish_ast.Assign("result", (Cish_ast.Int(i),0)), 0)
+  | Scish_ast.Int i -> 
+      let storeint = (Cish_ast.Assign("result", (Cish_ast.Int(i),0)), 0)
+      in
+      stmtconcat [expstmt storeint]
   | Scish_ast.PrimApp (op, exps) -> 
-      match op with
-      | Plus -> 
-
-      | Minus ->
+      (match op with
+      | Scish_ast.Plus -> 
+           (match exps with
+           | e1::e2::[] -> 
+               let tmp1 = new_label() in
+               let evale1 = compile_helper e1 env in
+               let storee1 = (Cish_ast.Assign(tmp1, (Cish_ast.Var("result"),0)),0) in
+               let evale2 = compile_helper e2 env in
+               let storee2 = 
+               (Cish_ast.Assign("result",
+                  (Cish_ast.Binop((Cish_ast.Var(tmp1),0) , Cish_ast.Plus,(Cish_ast.Var("result"),0)),0)),0)
+               in
+               stmtconcat [evale1; expstmt storee1; evale2; expstmt storee2]
+           | _ -> raise InvalidArgCount)
+      (*| Minus ->
       | Times ->
       | Div ->
       | Cons ->
       | Fst ->
       | Snd ->
       | Eq ->
-      | Lt ->
+      | Lt ->*)
+      | _ -> raise Unimplemented)
   | Scish_ast.If (e1, e2, e3) -> raise Unimplemented
 
 let rec compile_exp (e:Scish_ast.exp) : Cish_ast.program =
