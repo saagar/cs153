@@ -91,7 +91,11 @@ and compile_helper (e:Scish_ast.exp) (env:Cish_ast.var -> int) : Cish_ast.stmt =
 	| Lt ->*)
     | _ -> raise Unimplemented)
   | Scish_ast.If (e1, e2, e3) ->
-(*    let *) raise Unimplemented
+    let evalcond = compile_helper e1 env in
+    let evale2 = compile_helper e2 env in
+    let evale3 = compile_helper e3 env in
+    let ifstmt = (Cish_ast.If((Cish_ast.Binop((Cish_ast.Var("result"), 0), Cish_ast.Eq, (Cish_ast.Int 0, 0)), 0), evale3, evale2), 0) in
+    stmtconcat [evalcond; ifstmt]
 
 let rec compile_exp (e:Scish_ast.exp) : Cish_ast.program =
   let empty_env = fun x -> raise UnboundVariable in
