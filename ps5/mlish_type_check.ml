@@ -49,7 +49,17 @@ let rec unify (t1:tipe) (t2:tipe) : bool =
     | Unit_t, Unit_t -> true*)
     | _ -> type_error("Unable to unify types")
 
-let instantiate (s:tipe_scheme) : tipe = raise TypeError
+let substitute (l: (var*tipe) list) (t:tipe) : tipe = raise TypeError
+
+(* give all tvars a new Guess *)
+let instantiate (s:tipe_scheme) : tipe = 
+  (* vs is a tvar list, t is the tipe *)
+  let Forall(vs, t) = s in
+  (* vs_and_ts is a list of tuples (var, tipe) *)
+  (* for every tvar in vs, create a tuple containing a tvar and a new guess *)
+  let vs_and_ts : (var*tipe) list = List.map (fun a -> (a, guess())) vs
+  in
+    substitute vs_and_ts t
 
 let generalize (e:(var*tipe_scheme) list) (t:tipe) : tipe_scheme = raise TypeError
 
