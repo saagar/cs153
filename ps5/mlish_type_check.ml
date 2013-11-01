@@ -23,6 +23,12 @@ let rec tc (env:(var*tipe_scheme) list) ((e,_):exp) : tipe =
   | App (e1, e2) ->
     let (t1, t2, t) = (tc env e1, tc env e2, guess ()) in
     if unify t1 (Fn_t (t2, t)) then t else type_error "Wrong argument type"
-  | _ -> raise TypeError
+  | If (e1, e2, e3) ->
+    let (t1, t2, t3) = (tc env e1, tc env e2, tc env e3) in
+    if unify t1 Bool_t then
+      (if unify t2 t3 then t2 else type_error "Mismatched conditional branch types")
+    else type_error "Condition not of bool type"
+  | PrimApp (p, es) ->
+    (match p with
 
 let type_check_exp (e:Mlish_ast.exp) : tipe = raise TypeError
