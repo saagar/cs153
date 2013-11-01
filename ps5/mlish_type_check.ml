@@ -5,6 +5,11 @@ exception TypeError
 exception TODO (* remove including \n *)
 let type_error(s:string) = (print_string s; raise TypeError)
 
+(* generate fresh type variables *)
+let label_counter = ref 0
+let new_int() = (label_counter := (!label_counter) + 1; !label_counter)
+let freshvar() : tvar = "typevar" ^ (string_of_int (new_int()))
+
 let extend (e:(var*tipe_scheme) list) (x:var) (s:tipe_scheme) : (var*tipe_scheme) list = raise TypeError
 
 let lookup (e:(var*tipe_scheme) list) (x:var) : tipe_scheme = raise TypeError
@@ -51,7 +56,40 @@ let rec unify (t1:tipe) (t2:tipe) : bool =
 
 let instantiate (s:tipe_scheme) : tipe = raise TypeError
 
-let generalize (e:(var*tipe_scheme) list) (t:tipe) : tipe_scheme = raise TypeError
+let generalize (e:(var*tipe_scheme) list) (t:tipe) : tipe_scheme =
+  let setadd elt s = if List.memq elt s then s else elt::s in
+  let rec union s1 s2 =
+    (match s1 with
+      [] -> s2
+    | hd::tl -> union tl (setadd hd s2)) in
+  let minus s1 s2 =
+    let rec minus_helper s1 s2 accum =
+      (match s1 with
+	[] -> accum
+      | hd::tl -> if List.memq hd s2 then minus_helper tl s2 accum else minus_helper tl s2 (hd::accum)) in
+    minus_helper s1 s2 [] in
+  let guesses_of_tipe tt =
+    let rec guesses_of_tipe_helper ttt accum =
+      (match ttt with
+        Guess_t g1 ->
+          (match !g1 with
+            None -> setadd g1 accum
+          | Some tttt -> guesses_of_tipe_helper tttt (setadd g1 accum))
+      | List_t tttt -> guesses_of_tipe_helper tttt accum
+      | Pair_t (t1, t2) -> union (guesses_of_tipe_helper t1 accum) (guesses_of_tipe_helper t2 accum)
+      | Fn_t (t1, t2) -> union (guesses_of_tipe_helper t1 accum) (guesses_of_tipe_helper t2 accum)
+      | _ -> accum) in
+    guesses_of_tipe_helper tt [] in
+  let guesses_of ss = (match ss with Forall (_,tt) -> guesses_of_tipe tt) in
+  let subst_guess (gs_vs, tt) =
+    raise TypeError in
+  let t_gs = guesses_of_tipe t in
+  let env_list_gs = List.map (fun (x, s) -> guesses_of s) e in
+  let env_gs = List.fold_left union [] env_list_gs in
+  let diff = minus t_gs env_gs in
+  let gs_vs = List.map (fun g -> (g, freshvar ())) diff in
+  let tc = subst_guess (gs_vs, t) in
+  Forall (List.map snd gs_vs, tc)
 
 let rec tc (env:(var*tipe_scheme) list) ((e,_):exp) : tipe =
   match e with
