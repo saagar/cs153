@@ -1,6 +1,14 @@
 # vim swap files
 *.swp
 *.swo
+.*.sw?
+
+# Mac OS X 
+.DS_Store
+
+# emacs temp files
+*~
+.#*
 
 # pset zip files
 ps1.zip
@@ -47,3 +55,14 @@ ps4/cish_parse.ml
 ps4/ps4_*
 ps4/scish_lex.ml
 ps4/scish_parse.ml
+
+# pset 5 ignore files
+ps5/cish_lex.ml
+ps5/cish_parse.ml
+ps5/ps5_*
+ps5/scish_lex.ml
+ps5/scish_parse.ml
+ps5/ml_lex.ml
+ps5/ml_parse.ml
+
+
