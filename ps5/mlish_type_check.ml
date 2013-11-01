@@ -57,7 +57,8 @@ let rec unify (t1:tipe) (t2:tipe) : bool =
     | Int_t, Int_t -> true
     | Bool_t, Bool_t -> true
     | Unit_t, Unit_t -> true*)
-    | _ -> type_error("Unable to unify types")
+    | _ -> false
+    (*| _ -> type_error("Unable to unify types")*)
 
 (* substitute all vars in the tipe t with the guesses provided *)
 let rec substitute (lst: (tvar*tipe) list) (t:tipe) : tipe = 
