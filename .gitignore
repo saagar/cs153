@@ -9,6 +9,7 @@
 # emacs temp files
 *~
 .#*
+\#*#
 
 # pset zip files
 ps1.zip
