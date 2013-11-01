@@ -168,8 +168,8 @@ let rec tc (env:(var*tipe_scheme) list) ((e,_):exp) : tipe =
     | Minus -> int_binop_check es; Int_t
     | Times -> int_binop_check es; Int_t
     | Div -> int_binop_check es; Int_t
-    | Eq -> int_binop_check es; Int_t
-    | Lt -> int_binop_check es; Int_t
+    | Eq -> int_binop_check es; Bool_t
+    | Lt -> int_binop_check es; Bool_t
     | Pair ->
       (match es with
 	e1::e2::[] -> let (t1, t2) = (tc env e1, tc env e2) in Pair_t (t1, t2)
