@@ -25,7 +25,7 @@ let rec occurs (guess:tipe option ref) (t:tipe) : bool =
 let guess () : tipe = Guess_t(ref None)
 
 let rec unify (t1:tipe) (t2:tipe) : bool =
-  if (t1 = t2) then true
+  if (t1 == t2) then true
   else
     match (t1, t2) with
     | Guess_t(t1_guess), _ ->
