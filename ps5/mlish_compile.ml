@@ -18,7 +18,7 @@ let rec compile_exp_rec ((e,_):ML.exp) : S.exp =
       (match p, xs with
       | ML.Int i, [] -> S.Int i
       | ML.Bool b, [] -> if b then (S.Int 1) else (S.Int 0)
-      | ML.Unit, [] -> raise TODO (* how do we do this? *)
+      | ML.Unit, [] -> S.Var("_unit_")
       | ML.Plus, [e1;e2] -> compile_binop S.Plus e1 e2
       | ML.Minus, [e1;e2] -> compile_binop S.Minus e1 e2
       | ML.Times, [e1;e2] -> compile_binop S.Times e1 e2
@@ -51,4 +51,5 @@ let rec compile_exp_rec ((e,_):ML.exp) : S.exp =
   
 
 
-let rec compile_exp ((e,_):ML.exp) : S.exp = raise ImplementMe
+let rec compile_exp ((e,p):ML.exp) : S.exp =
+  S.sLet ("_unit_") (compile_exp_rec (e,p)) (S.Int(0))
