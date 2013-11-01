@@ -12,7 +12,10 @@ let lookup (e:(var*tipe_scheme) list) (x:var) : tipe_scheme = raise TypeError
 (* Check if a Guess appears in a tipe. If so, there's some recursion to avoid *)
 let rec occurs (guess:tipe option ref) (t:tipe) : bool =
   match t with
-  | Guess_t t1 -> guess == t1
+  | Guess_t(t1) -> guess == t1 || 
+    (match !t1 with
+    | None -> false
+    | Some innerguess_t -> occurs guess innerguess_t)
   | Fn_t (t1, t2) -> occurs guess t1 || occurs guess t2
   | Pair_t (t1, t2) -> occurs guess t1 || occurs guess t2
   | List_t t1 -> occurs guess t1
