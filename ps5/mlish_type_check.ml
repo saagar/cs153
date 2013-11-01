@@ -55,13 +55,14 @@ let rec unify (t1:tipe) (t2:tipe) : bool =
     | _ -> type_error("Unable to unify types")
 
 (* substitute all vars in the tipe t with the guesses provided *)
-let rec substitute (lst: (var*tipe) list) (t:tipe) : tipe = 
+let rec substitute (lst: (tvar*tipe) list) (t:tipe) : tipe = 
   match t with
   (* handles guesses. unclear if we have guesses in the tipes *)
   | Guess_t(t1_guess) ->
       (match !t1_guess with
       | None -> Guess_t(t1_guess)
-      | Some(t1_g) -> t1_guess := Some (substitute lst t1_g); Guess_t(t1_guess))
+      | Some t1_g -> Guess_t (ref (Some (substitute lst t1_g))))
+      (*| Some(t1_g) -> t1_guess := Some (substitute lst t1_g); Guess_t(t1_guess))*)
   | Fn_t (t1, t2) -> Fn_t ((substitute lst t1), (substitute lst t2) )
   | Pair_t (t1, t2) -> Pair_t ((substitute lst t1), (substitute lst t2))
   | List_t (t1) -> List_t (substitute lst t1)
@@ -74,7 +75,7 @@ let instantiate (s:tipe_scheme) : tipe =
   let Forall(vs, t) = s in
   (* vs_and_ts is a list of tuples (var, tipe) *)
   (* for every tvar in vs, create a tuple containing a tvar and a new guess *)
-  let vs_and_ts : (var*tipe) list = List.map (fun a -> (a, guess())) vs
+  let vs_and_ts : (tvar*tipe) list = List.map (fun a -> (a, guess())) vs
   in
     substitute vs_and_ts t
 
@@ -103,8 +104,16 @@ let generalize (e:(var*tipe_scheme) list) (t:tipe) : tipe_scheme =
       | _ -> accum) in
     guesses_of_tipe_helper tt [] in
   let guesses_of ss = (match ss with Forall (_,tt) -> guesses_of_tipe tt) in
-  let subst_guess (gs_vs, tt) =
-    raise TypeError in
+  let rec subst_guess (gs_vs, tt) =
+    (match tt with
+      Guess_t tt_guess ->
+	(match gs_vs with
+	  [] -> tt
+	| hd::tl -> let (g, v) = hd in if g == tt_guess then Tvar_t v else subst_guess (tl, tt))
+    | Fn_t (t1, t2) -> Fn_t ((subst_guess (gs_vs, t1), subst_guess (gs_vs, t2)))
+    | Pair_t (t1, t2) -> Pair_t ((subst_guess (gs_vs, t1), subst_guess (gs_vs, t2)))
+    | List_t (t1) -> List_t (subst_guess (gs_vs, t1))
+    | _ -> tt) in
   let t_gs = guesses_of_tipe t in
   let env_list_gs = List.map (fun (x, s) -> guesses_of s) e in
   let env_gs = List.fold_left union [] env_list_gs in
