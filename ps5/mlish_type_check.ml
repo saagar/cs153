@@ -2,17 +2,25 @@
 open Mlish_ast
 
 exception TypeError
+exception NotFound
 exception TODO (* remove including \n *)
 let type_error(s:string) = (print_string s; raise TypeError)
+let nf_error(s:string) = (print_string s; raise NotFound)
 
 (* generate fresh type variables *)
 let label_counter = ref 0
 let new_int() = (label_counter := (!label_counter) + 1; !label_counter)
 let freshvar() : tvar = "typevar" ^ (string_of_int (new_int()))
 
-let extend (e:(var*tipe_scheme) list) (x:var) (s:tipe_scheme) : (var*tipe_scheme) list = raise TypeError
+(* add the variable x and its tipe_scheme s to the env *)
+let extend (e:(var*tipe_scheme) list) (x:var) (s:tipe_scheme) :
+  (var*tipe_scheme) list = (x,s)::e
 
-let lookup (e:(var*tipe_scheme) list) (x:var) : tipe_scheme = raise TypeError
+(* return the tipe_scheme for x that is found in the env e *)
+let rec lookup (e:(var*tipe_scheme) list) (x:var) : tipe_scheme = 
+  match e with
+  | (v, t)::tl -> if v = x then t else lookup tl x
+  | [] -> nf_error(x)
 
 (* Check if a Guess appears in a tipe. If so, there's some recursion to avoid *)
 let rec occurs (guess:tipe option ref) (t:tipe) : bool =
