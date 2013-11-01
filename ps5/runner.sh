@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FILES="test/*"
+FILES="test/*.ml"
 
 function trim {
   local var=$@
