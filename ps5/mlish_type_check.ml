@@ -2,10 +2,7 @@
 open Mlish_ast
 
 exception TypeError
-exception NotFound
-exception TODO (* remove including \n *)
 let type_error(s:string) = (print_string s; raise TypeError)
-let nf_error(s:string) = (print_string s; raise NotFound)
 
 (* generate fresh type variables *)
 let label_counter = ref 0
@@ -20,7 +17,7 @@ let extend (e:(var*tipe_scheme) list) (x:var) (s:tipe_scheme) :
 let rec lookup (e:(var*tipe_scheme) list) (x:var) : tipe_scheme = 
   match e with
   | (v, t)::tl -> if v = x then t else lookup tl x
-  | [] -> nf_error(x)
+  | [] -> type_error ("Unbound variable " ^ x)
 
 (* Check if a Guess appears in a tipe. If so, there's some recursion to avoid *)
 let rec occurs (guess:tipe option ref) (t:tipe) : bool =
@@ -71,7 +68,7 @@ let rec substitute (lst: (tvar*tipe) list) (t:tipe) : tipe =
       | None -> Guess_t(t1_guess)
       | Some t1_g -> Guess_t (ref (Some (substitute lst t1_g))))
       (*| Some(t1_g) -> t1_guess := Some (substitute lst t1_g); Guess_t(t1_guess))*)
-  | Fn_t (t1, t2) -> Fn_t ((substitute lst t1), (substitute lst t2) )
+  | Fn_t (t1, t2) -> Fn_t ((substitute lst t1), (substitute lst t2))
   | Pair_t (t1, t2) -> Pair_t ((substitute lst t1), (substitute lst t2))
   | List_t (t1) -> List_t (substitute lst t1)
   | Tvar_t t1 -> (try List.assoc t1 lst with Not_found -> t) (* just return t? *)
@@ -131,6 +128,24 @@ let generalize (e:(var*tipe_scheme) list) (t:tipe) : tipe_scheme =
   Forall (List.map snd gs_vs, tc)
 
 let rec tc (env:(var*tipe_scheme) list) ((e,_):exp) : tipe =
+  let zero_args elist : unit =
+    (match elist with
+      [] -> ()
+    | _ -> type_error "Expected zero arguments") in
+  (*let one_arg elist : unit =
+    (match elist with
+      [x] -> ()
+    | _ -> type_error "Expected one argument") in
+  let two_args elist : unit =
+    (match elist with
+      x1::x2::[] -> ()
+    | _ -> type_error "Expected two arguments") in*)
+  let int_binop_check elist : unit =
+    (match elist with
+      e1::e2::[] ->
+	let (t1, t2) = (tc env e1, tc env e2) in
+	if (unify t1 Int_t && unify t2 Int_t) then () else type_error "Expected int type"
+    | _ -> type_error "Expected two arguments") in
   match e with
     Let (x, e1, e2) -> let s = generalize env (tc env e1) in tc (extend env x s) e2
   | Var x -> instantiate (lookup env x)
@@ -143,7 +158,65 @@ let rec tc (env:(var*tipe_scheme) list) ((e,_):exp) : tipe =
     if unify t1 Bool_t then
       (if unify t2 t3 then t2 else type_error "Mismatched conditional branch types")
     else type_error "Condition not of bool type"
-  | PrimApp (p, es) -> raise TypeError
+  | PrimApp (p, es) ->
+    (match p with
+      Int _ -> zero_args es; Int_t
+    | Bool _ -> zero_args es; Bool_t
+    | Unit -> zero_args es; Unit_t
+    | Plus -> int_binop_check es; Int_t
+    | Minus -> int_binop_check es; Int_t
+    | Times -> int_binop_check es; Int_t
+    | Div -> int_binop_check es; Int_t
+    | Eq -> int_binop_check es; Int_t
+    | Lt -> int_binop_check es; Int_t
+    | Pair ->
+      (match es with
+	e1::e2::[] -> let (t1, t2) = (tc env e1, tc env e2) in Pair_t (t1, t2)
+      | _ -> type_error "Expected two arguments")
+    | Fst ->
+      (match es with
+	[e1] ->
+	  let t1 = tc env e1 in
+	  let g1 = guess () in
+	  let g2 = guess () in
+	  if unify t1 (Pair_t (g1, g2)) then g1 else type_error "Expected pair type"
+      | _ -> type_error "Expected one argument")
+    | Snd ->
+      (match es with
+	[e1] ->
+	  let t1 = tc env e1 in
+	  let g1 = guess () in
+	  let g2 = guess () in
+	  if unify t1 (Pair_t (g1, g2)) then g2 else type_error "Expected pair type"
+      | _ -> type_error "Expected one argument")
+    | Nil -> zero_args es; let g = guess () in List_t g
+    | Cons ->
+      (match es with
+	e1::e2::[] ->
+	  let t1 = tc env e1 in
+	  let t2 = tc env e2 in
+	  if unify t2 (List_t t1) then List_t t1 else type_error "Mismatched types in list"
+      | _ -> type_error "Expected two arguments")
+    | IsNil ->
+      (match es with
+	[e1] ->
+	  let t1 = tc env e1 in
+	  let g = guess () in
+	  if unify t1 (List_t g) then Bool_t else type_error "Expected list type"
+      | _ -> type_error "Expected one argument")
+    | Hd ->
+      (match es with
+	[e1] ->
+	  let t1 = tc env e1 in
+	  let g = guess () in
+	  if unify t1 (List_t g) then g else type_error "Expected list type"
+      | _ -> type_error "Expected one argument")
+    | Tl ->
+      (match es with
+	[e1] ->
+	  let t1 = tc env e1 in
+	  let g = guess () in
+	  if unify t1 (List_t g) then t1 else type_error "Expected list type"
+      | _ -> type_error "Expected one argument"))
 
-let type_check_exp (e:Mlish_ast.exp) : tipe = raise TypeError
-
+let type_check_exp (e:Mlish_ast.exp) : tipe = tc [] e
