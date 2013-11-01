@@ -7,7 +7,6 @@ function trim {
   var="${var#"${var%%[![:space:]]*}"}"   # remove leading whitespace characters
   var="${var%"${var##*[![:space:]]}"}"   # remove trailing whitespace characters
   echo -n "$var"
-
 }
 
 function runall {
@@ -22,7 +21,6 @@ function runall {
     if [ "$ANSWER" != "answer = $EXPECTED" ]; then
       # test failed, check error messages
       if [ "$ANSWER" != "$EXPECTED" ]; then
-      
         echo -n -e "\e[95m[ SUCCESS ] "
         tput sgr0
         echo "$SOLN: answer: $ANSWER, expected: $EXPECTED"
