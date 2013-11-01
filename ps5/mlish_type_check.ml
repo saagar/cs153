@@ -49,6 +49,7 @@ let rec unify (t1:tipe) (t2:tipe) : bool =
     | Unit_t, Unit_t -> true*)
     | _ -> type_error("Unable to unify types")
 
+(* substitute all vars in the tipe t with the guesses provided *)
 let rec substitute (lst: (var*tipe) list) (t:tipe) : tipe = 
   match t with
   (* handles guesses. unclear if we have guesses in the tipes *)
