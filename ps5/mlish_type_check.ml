@@ -51,14 +51,7 @@ let rec unify (t1:tipe) (t2:tipe) : bool =
     | Fn_t(t1a,t1b), Fn_t(t2a,t2b) -> (unify t1a t2a) && (unify t1b t2b)
     | Pair_t(t1a,t1b), Pair_t(t2a,t2b) -> (unify t1a t2a) && (unify t1b t2b)
     | List_t(t1a), List_t(t2a) -> unify t1a t2a
-    (* Probably can combine this - do we even get to these cases? *)
-    (*| Tvar_t t1a, _ -> true
-    | _, Tvar_t t2a -> true
-    | Int_t, Int_t -> true
-    | Bool_t, Bool_t -> true
-    | Unit_t, Unit_t -> true*)
     | _ -> false
-    (*| _ -> type_error("Unable to unify types")*)
 
 (* substitute all vars in the tipe t with the guesses provided *)
 let rec substitute (lst: (tvar*tipe) list) (t:tipe) : tipe = 
@@ -133,14 +126,6 @@ let rec tc (env:(var*tipe_scheme) list) ((e,_):exp) : tipe =
     (match elist with
       [] -> ()
     | _ -> type_error "Expected zero arguments") in
-  (*let one_arg elist : unit =
-    (match elist with
-      [x] -> ()
-    | _ -> type_error "Expected one argument") in
-  let two_args elist : unit =
-    (match elist with
-      x1::x2::[] -> ()
-    | _ -> type_error "Expected two arguments") in*)
   let int_binop_check elist : unit =
     (match elist with
       e1::e2::[] ->

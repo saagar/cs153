@@ -33,19 +33,6 @@ let rec compile_exp_rec ((e,_):ML.exp) : S.exp =
     | ML.IsNil, [e1] -> S.If (compile_exp_rec e1, S.Int 0, S.Int 1)
     | ML.Hd, [e1] -> S.PrimApp(S.Fst, [compile_exp_rec e1])
     | ML.Tl, [e1] -> S.PrimApp(S.Snd, [compile_exp_rec e1])
-(*      (* Wrap 0 with 1. The 2nd item is 1 because IsNil is true (1) *)
-    | ML.Nil, [] -> S.PrimApp(S.Cons, [S.Int(0); S.Int(1)])
-    | ML.Cons, [e1;e2] -> 
-      let pair = compile_binop S.Cons e1 e2 in
-          (* wrap our pair in a Cons of pair::0. 
-           * the 0 indicates that this is not Nil *)
-      S.PrimApp(S.Cons, [pair; S.Int(0)])
-      (* get the 2nd item of a wrap and return that *)
-    | ML.IsNil, [e1] -> S.PrimApp(S.Snd, [compile_exp_rec e1])
-      (* for Hd, get the first of a wrap, then get the fst elt of the pair *)
-    | ML.Hd, [e1] -> S.PrimApp(S.Fst,[S.PrimApp(S.Fst, [compile_exp_rec e1])])
-      (* for Tl, get the first of a wrap, then get the snd elt of the pair *)
-    | ML.Tl, [e1] -> S.PrimApp(S.Snd,[S.PrimApp(S.Snd, [compile_exp_rec e1])]) *)
     | ML.Int _, _
     | ML.Bool _, _
     | ML.Unit, _
@@ -70,7 +57,5 @@ let rec compile_exp_rec ((e,_):ML.exp) : S.exp =
                               (compile_exp_rec e3))
   | ML.Let(v, e1, e2) -> S.sLet v (compile_exp_rec e1) (compile_exp_rec e2) 
 
-
 let rec compile_exp ((e,p):ML.exp) : S.exp =
-  (*S.sLet ("_unit_") (compile_exp_rec (e,p)) (S.Int(15))*)
   compile_exp_rec (e,p)
