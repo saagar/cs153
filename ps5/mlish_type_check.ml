@@ -49,7 +49,18 @@ let rec unify (t1:tipe) (t2:tipe) : bool =
     | Unit_t, Unit_t -> true*)
     | _ -> type_error("Unable to unify types")
 
-let substitute (l: (var*tipe) list) (t:tipe) : tipe = raise TypeError
+let rec substitute (lst: (var*tipe) list) (t:tipe) : tipe = 
+  match t with
+  (* handles guesses. unclear if we have guesses in the tipes *)
+  | Guess_t(t1_guess) ->
+      (match !t1_guess with
+      | None -> Guess_t(t1_guess)
+      | Some(t1_g) -> t1_guess := Some (substitute lst t1_g); Guess_t(t1_guess))
+  | Fn_t (t1, t2) -> Fn_t ((substitute lst t1), (substitute lst t2) )
+  | Pair_t (t1, t2) -> Pair_t ((substitute lst t1), (substitute lst t2))
+  | List_t (t1) -> List_t (substitute lst t1)
+  | Tvar_t t1 -> (try List.assoc t1 lst with Not_found -> t) (* just return t? *)
+  | _ -> t
 
 (* give all tvars a new Guess *)
 let instantiate (s:tipe_scheme) : tipe = 
