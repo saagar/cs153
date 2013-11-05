@@ -1,0 +1,10 @@
+Part 1 (typechecker): 9.1/10 Points
+
+Comments:
+---------
+passed (+): 42/42 passed (t.c. error): 25/32
+
+- Type checker was a little too optimistic. E.g.
+
+let f x = x + 1
+in f true
