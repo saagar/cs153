@@ -18,9 +18,9 @@ type value =
 (* expressions -- possibly impure, control flow *)
 and exp = 
   Return of operand
-| LetVal of var * value * exp
-| LetCall of var * operand * operand * exp
-| LetIf of var * operand * exp * exp * exp
+| LetVal of var * value * exp (* Let x = value in expression *)
+| LetCall of var * operand * operand * exp (* Let x = f y in expression *)
+| LetIf of var * operand * exp * exp * exp (* let x = (if y then e1 else e2) in expression *)
 
 (* convert a monadic expression to a string *)
 let exp2string (e:exp) : string = 
