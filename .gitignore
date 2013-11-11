@@ -66,4 +66,10 @@ ps5/scish_parse.ml
 ps5/ml_lex.ml
 ps5/ml_parse.ml
 
-
+# pset 6 ignore files
+ps6/ml_lex.ml
+ps6/ml_parse.ml
+ps6/monadic
+ps6/ps6_*
+ps6/*_lex.ml
+ps6/*_parse.ml
