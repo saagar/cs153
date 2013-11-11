@@ -282,7 +282,29 @@ let count_table (e:exp) =
     occ_e e; table
 
 (* dead code elimination *)
-let dce (e:exp) : exp = raise TODO 
+(* S, NOTE: mostly the same as the lecture slides.
+ * i've extended each of the calls to do the same as the LetVal from the slides,
+ * which makes sense. also LetVal has a lambda in it and lambdas contain exps *)
+let dce (e:exp) : exp = 
+  let counts = count_table e in
+  let rec dce_helper (e1:exp) =
+    match e1 with
+    | Return w -> Return w
+    | LetVal(x, Lambda(v, l_exp), e) ->
+        if get_uses counts x = 0 then change(dce_helper e)
+        (* s: NOTE: i think this is correct, because let x = Lambda() in exp,
+         * but x will get dropped by dce_helper *)
+        else LetVal(x, Lambda(v, dce_helper l_exp), dce_helper e)
+    | LetVal(x, v, e) -> 
+        if get_uses counts x = 0 then change(dce_helper e) 
+        else LetVal(x, v, dce_helper e)
+    | LetCall(x, f, w, e) ->
+        if get_uses counts x = 0 then change(dce_helper e)
+        else LetCall(x, f, w, dce_helper e)
+    | LetIf(x, w, e1, e2, e) ->
+        if get_uses counts x = 0 then change(dce_helper e)
+        else LetIf(x, w, dce_helper e1, dce_helper e2, dce_helper e)
+  in dce_helper e
 
 (* (1) inline functions 
  * (2) reduce LetIf expressions when the value being tested is a constant.
