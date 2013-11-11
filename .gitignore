@@ -51,19 +51,17 @@ ps3/parse.ml
 ps3/ps3
 
 # pset 4 ignore files
-ps4/cish_lex.ml
-ps4/cish_parse.ml
+ps4/*_lex.ml
+ps4/*_parse.ml
 ps4/ps4_*
-ps4/scish_lex.ml
-ps4/scish_parse.ml
 
 # pset 5 ignore files
-ps5/cish_lex.ml
-ps5/cish_parse.ml
+ps5/*_lex.ml
+ps5/*_parse.ml
 ps5/ps5_*
-ps5/scish_lex.ml
-ps5/scish_parse.ml
-ps5/ml_lex.ml
-ps5/ml_parse.ml
 
-
+# pset 6 ignore files
+ps6/monadic
+ps6/ps6_*
+ps6/*_lex.ml
+ps6/*_parse.ml
