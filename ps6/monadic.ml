@@ -353,7 +353,23 @@ let never_inline_thresh  (e : exp) : bool = false (** Never inline  **)
 (* return true if the expression e is smaller than i, i.e. it has fewer
  * constructors
  *)
-let size_inline_thresh (i : int) (e : exp) : bool = raise TODO 
+let size_inline_thresh (i : int) (e : exp) : bool = 
+  let rec exp_count (i : int) (e : exp) : int =
+    match e with
+    | Return w -> i + 2
+    | LetVal(y, v, e) -> exp_count (val_count (i+1) v) e
+    | LetCall(y,op1,op2,e) -> exp_count (i+3) e
+    | LetIf(y, op1, e1, e2, e) -> 
+        (* s: note - is this ok, or should we nest these?*)
+        (exp_count (i+2) e1) + (exp_count 0 e2) + (exp_count 0 e)
+  and val_count (i : int) (v : value) : int =
+    match v with
+    | Op x -> i+1
+    | PrimApp _ -> raise TODO
+    | Lambda(v1, e) -> exp_count (i+1) e
+  in 
+  let total = exp_count 0 e in
+  total < i
 
 (* inlining 
  * only inline the expression e if (inline_threshold e) return true.
