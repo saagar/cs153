@@ -27,6 +27,7 @@ function runall {
   echo "$num/$den" >> $FILE
   `rm numbers.txt top.txt bot.txt`
   cat $FILE
+  bc -l <<< $num/$den
 }
 
 runall
