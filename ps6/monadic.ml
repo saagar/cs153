@@ -192,24 +192,24 @@ let cse (e : exp) : exp =
 (* constant folding
  * Apply primitive operations which can be evaluated. e.g. fst (1,2) = 1
  *)
-let rec cfold_exp (e : exp) : exp =
+let rec cfold_exp (env : var -> value option) (e : exp) : exp =
   match e with
     Return op -> Return op
-  | LetVal (x, v, e1) -> LetVal (x, cfold_value v, cfold_exp e1)
-  | LetCall (x, op1, op2, e1) -> LetCall (x, op1, op2, cfold_exp e1)
+  | LetVal (x, v, e1) -> LetVal (x, cfold_value env v, cfold_exp env e1)
+  | LetCall (x, op1, op2, e1) -> LetCall (x, op1, op2, cfold_exp env e1)
   | LetIf (x, op1, e1, e2, e3) ->
     (match op1 with
-      Int i -> change (if i = 0 then cfold_exp (cfold_flatten x e2 e3) else cfold_exp (cfold_flatten x e1 e3))
-    | Var y -> LetIf (x, op1, cfold_exp e1, cfold_exp e2, cfold_exp e3))
+      Int i -> change (if i = 0 then cfold_exp env (cfold_flatten x e2 e3) else cfold_exp env (cfold_flatten x e1 e3))
+    | Var y -> LetIf (x, op1, cfold_exp env e1, cfold_exp env e2, cfold_exp env e3))
 and cfold_flatten (x : var) (e1 : exp) (e2 : exp) : exp =
   match e1 with
     Return op -> LetVal (x, Op op, e2)
   | LetVal (y, v, e3) -> LetVal (y, v, cfold_flatten x e3 e2)
   | LetCall (y, op1, op2, e3) -> LetCall (y, op1, op2, cfold_flatten x e3 e2)
   | LetIf (y, op, e3, e4, e5) -> LetIf (y, op, e3, e4, cfold_flatten x e5 e2)
-and cfold_value (v : value) : value =
+and cfold_value (env : var -> value option) (v : value) : value =
   match v with
-    Lambda (x, e) -> Lambda (x, cfold_exp e)
+    Lambda (x, e) -> Lambda (x, cfold_exp env e)
   | Op op -> Op op
   | PrimApp (S.Plus, [Int i; Int j]) -> change (Op (Int (i + j)))
   | PrimApp (S.Plus, [Int 0; Var x]) -> change (Op (Var x))
@@ -222,12 +222,15 @@ and cfold_value (v : value) : value =
   | PrimApp (S.Times, [Var x; Int 1]) -> change (Op (Var x))
   | PrimApp (S.Div, [Int i; Int j]) -> if j = 0 then v else change (Op (Int (i / j)))
   | PrimApp (S.Div, [Var x; Int 1]) -> change (Op (Var x))
-  (*| PrimApp (S.Eq, [*)
+  | PrimApp (S.Eq, [Int i; Int j]) -> change (Op (Int (if i = j then 1 else 0)))
+  | PrimApp (S.Eq, [Var x; Var y]) -> if x = y then change (Op (Int 1)) else v
+  | PrimApp (S.Lt, [Int i; Int j]) -> change (Op (Int (if i < j then 1 else 0)))
+  | PrimApp (S.Lt, [Var x; Var y]) -> if x = y then change (Op (Int 0)) else v
   (*| PrimApp (S.Cons
   | PrimApp (S.Fst*)
   | _ -> raise TODO
 
-let cfold (e : exp) : exp = cfold_exp e
+let cfold (e : exp) : exp = cfold_exp empty_env e
 
 (* To support a somewhat more efficient form of dead-code elimination and
  * inlining, we first construct a table saying how many times each variable 
