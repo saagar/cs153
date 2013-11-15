@@ -51,4 +51,4 @@ mon: mlish
 	$(COMPILER) -o monadic scish_ast.cmo scish_eval.cmo mlish_ast.cmo mlish_type_check.cmo mlish_compile.cmo ml_lex.cmo ml_parse.cmo monadic.cmo mlish.cmo
 
 clean:
-	-rm *.cmo *.cmi monadic ps6_scish ps6_cish ml_parse.ml ml_parse.mli ml_lex.ml scish_parse.mli scish_parse.ml scish_lex.ml cish_parse.mli cish_parse.ml cish_lex.ml *.out 
+	-rm *.cmo *.cmi monadic ps6_scish ps6_cish ml_parse.ml ml_parse.mli ml_lex.ml scish_parse.mli scish_parse.ml scish_lex.ml cish_parse.mli cish_parse.ml cish_lex.ml
