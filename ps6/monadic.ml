@@ -377,7 +377,13 @@ let inline (inline_threshold: exp -> bool) (e:exp) : exp =
       Return op -> e1
     | LetVal (x, v, e2) ->
       (match v with
-	Lambda (y, e3) -> if inline_threshold e3 then change (inline_exp (extend env (Var x) (Lambda (y, inline_exp env e3))) e2) else LetVal (x, v, inline_exp env e2)
+        Lambda (y, e3) ->
+          if inline_threshold e3
+          then
+            (match env (Var x) with
+              None -> change (inline_exp (extend env (Var x) (Lambda (y, inline_exp env e3))) e1)
+            | Some _ -> LetVal (x, v, inline_exp env e2))
+          else LetVal (x, v, inline_exp env e2)
       | _ -> LetVal (x, v, inline_exp env e2))
     | LetCall (x, op1, op2, e2) ->
       (match env op1 with
