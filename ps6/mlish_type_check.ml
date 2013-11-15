@@ -103,6 +103,7 @@ let rec occurs (r : tipe option ref) (t : tipe) : bool =
 let rec unify (t1: tipe) (t2: tipe) : unit =
   if t1 == t2 then () else
     match collapse t1, collapse t2 with
+     | Guess_t ({contents = None}), Guess_t ({contents = None}) -> ()
      | Guess_t ({contents = None} as r), t
      | t, Guess_t ({contents = None} as r) ->
          if occurs r t then type_error "occurs fail" else

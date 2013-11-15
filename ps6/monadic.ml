@@ -172,24 +172,21 @@ and cprop_oper (env : var -> operand option) (w:operand) =
 let cprop e = cprop_exp empty_env e
 
 (* common sub-value elimination -- as in the slides *)
-let cse (e : exp) : exp = 
-  let rec cse_exp (env: value->var option) (e: exp) : exp =
+let cse (e : exp) : exp =
+  let rec cse_exp (env : value->var option) (e : exp) : exp =
     match e with
     | Return w -> Return w
     | LetVal(x, v, e) ->
-        (match env v with
-        | None -> LetVal(x, cse_val env v, cse_exp (extend env v x) e)
-        | Some y -> change (LetVal(x, Op(Var y), cse_exp env e))
-        )
+      (match env v with
+      | None -> LetVal(x, cse_val env v, cse_exp (extend env v x) e)
+      | Some y -> change (LetVal(x, Op(Var y), cse_exp env e)))
     | LetCall(x, f, w, e) -> LetCall(x, f, w, cse_exp env e)
-    | LetIf(x, w, e1, e2, e) -> 
-        LetIf(x, w, cse_exp env e1, 
-              cse_exp env e2, cse_exp env e)
-    and cse_val env v = 
-      match v with
-      | Lambda(x, e) -> Lambda(x, cse_exp env e)
-      | v -> v
-  in 
+    | LetIf(x, w, e1, e2, e) -> LetIf(x, w, cse_exp env e1, cse_exp env e2, cse_exp env e)
+  and cse_val env v =
+    match v with
+    | Lambda(x, e) -> Lambda(x, cse_exp env e)
+    | v -> v
+  in
   cse_exp empty_env e
 
 (* constant folding
@@ -202,7 +199,7 @@ let rec cfold_exp (e : exp) : exp =
   | LetCall (x, op1, op2, e1) -> LetCall (x, op1, op2, cfold_exp e1)
   | LetIf (x, op1, e1, e2, e3) ->
     (match op1 with
-      Int i -> if i = 0 then cfold_exp (cfold_flatten x e2 e3) else cfold_exp (cfold_flatten x e1 e3)
+      Int i -> change (if i = 0 then cfold_exp (cfold_flatten x e2 e3) else cfold_exp (cfold_flatten x e1 e3))
     | Var y -> LetIf (x, op1, cfold_exp e1, cfold_exp e2, cfold_exp e3))
 and cfold_flatten (x : var) (e1 : exp) (e2 : exp) : exp =
   match e1 with
@@ -295,15 +292,13 @@ let dce (e:exp) : exp =
         (* s: NOTE: i think this is correct, because let x = Lambda() in exp,
          * but x will get dropped by dce_helper *)
         else LetVal(x, Lambda(v, dce_helper l_exp), dce_helper e)
-    | LetVal(x, v, e) -> 
+    | LetVal(x, v, e) ->
         if get_uses counts x = 0 then change(dce_helper e) 
         else LetVal(x, v, dce_helper e)
     | LetCall(x, f, w, e) ->
-        if get_uses counts x = 0 then change(dce_helper e)
-        else LetCall(x, f, w, dce_helper e)
+        LetCall(x, f, w, dce_helper e)
     | LetIf(x, w, e1, e2, e) ->
-        if get_uses counts x = 0 then change(dce_helper e)
-        else LetIf(x, w, dce_helper e1, dce_helper e2, dce_helper e)
+        LetIf(x, w, dce_helper e1, dce_helper e2, dce_helper e)
   in dce_helper e
 
 (* (1) inline functions 
@@ -353,23 +348,19 @@ let never_inline_thresh  (e : exp) : bool = false (** Never inline  **)
 (* return true if the expression e is smaller than i, i.e. it has fewer
  * constructors
  *)
-let size_inline_thresh (i : int) (e : exp) : bool = 
-  let rec exp_count (i : int) (e : exp) : int =
-    match e with
-    | Return w -> i + 2
-    | LetVal(y, v, e) -> exp_count (val_count (i+1) v) e
-    | LetCall(y,op1,op2,e) -> exp_count (i+3) e
-    | LetIf(y, op1, e1, e2, e) -> 
-        (* s: note - is this ok, or should we nest these?*)
-        (exp_count (i+2) e1) + (exp_count 0 e2) + (exp_count 0 e)
-  and val_count (i : int) (v : value) : int =
+let size_inline_thresh (i : int) (e : exp) : bool =
+  let rec exp_count (e1 : exp) : int =
+    match e1 with
+      Return op -> 2
+    | LetVal (x, v, e1) -> 1 + val_count v + exp_count e1
+    | LetCall (x, op1, op2, e1) -> 3 + exp_count e1
+    | LetIf (x, op, e1, e2, e3) -> 2 + exp_count e1 + exp_count e2 + exp_count e3
+  and val_count (v : value) : int =
     match v with
-    | Op x -> i+1
-    | PrimApp _ -> raise TODO
-    | Lambda(v1, e) -> exp_count (i+1) e
-  in 
-  let total = exp_count 0 e in
-  total < i
+      Op op -> 2
+    | Lambda (x, e1) -> 1 + exp_count e1
+    | PrimApp (p, ops) -> 1 + List.length ops
+  in exp_count e < i
 
 (* inlining 
  * only inline the expression e if (inline_threshold e) return true.
