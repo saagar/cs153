@@ -258,7 +258,7 @@ let def (t) (x:var) =
     Hashtbl.add t x {uses=ref 0;calls=ref 0}
 let inc r = (r := !r + 1)
 let use (t) (x:var) = 
-    inc ((Hashtbl.find t x).uses)
+  print_string x;inc ((Hashtbl.find t x).uses)
 let call (t) (x:var) = 
     inc ((Hashtbl.find t x).calls)
 let get_uses (t) (x:var) : int = !((Hashtbl.find t x).uses)
@@ -289,11 +289,11 @@ let count_table (e:exp) =
       match oper with
         Var x -> use x
       | Int _ -> () in
-    occ_e e; table
+    print_string "making a table\n";occ_e e; table
 
 (* dead code elimination *)
 let dce (e:exp) : exp = 
-  let counts = count_table e in
+  let counts = print_string "dce making table! \n";count_table e in
   let rec dce_helper (e1:exp) =
     match e1 with
     | Return w -> Return w
@@ -303,9 +303,9 @@ let dce (e:exp) : exp =
     | LetVal(x, v, e) ->
       if get_uses counts x = 0 then change (dce_helper e) 
       else LetVal(x, v, dce_helper e)
-    | LetCall(x, f, w, e) -> LetCall(x, f, w, dce_helper e)
-    | LetIf(x, w, e1, e2, e) -> LetIf(x, w, dce_helper e1, dce_helper e2, dce_helper e)
-  in dce_helper e
+    | LetCall(x, f, w, e) -> print_string "calling dce_helper in LetCall\n";LetCall(x, f, w, dce_helper e)
+    | LetIf(x, w, e1, e2, e) -> print_string "calling dce_helper in LetIf\n";LetIf(x, w, dce_helper e1, dce_helper e2, dce_helper e)
+  in print_string "dce\n";dce_helper e
 
 (* (1) inline functions 
  * (2) reduce LetIf expressions when the value being tested is a constant.
@@ -366,7 +366,7 @@ let size_inline_thresh (i : int) (e : exp) : bool =
       Op op -> 2
     | Lambda (x, e1) -> 1 + exp_count e1
     | PrimApp (p, ops) -> 1 + List.length ops
-  in exp_count e < i
+  in exp_count e < 
 
 (* inlining 
  * only inline the expression e if (inline_threshold e) return true.
@@ -376,16 +376,23 @@ let inline (inline_threshold: exp -> bool) (e:exp) : exp =
     match e1 with
       Return op -> e1
     | LetVal (x, v, e2) ->
+        print_string ("inline LetVal: " ^ x ^ "\n");
       (match v with
-	Lambda (y, e3) -> if inline_threshold e3 then change (inline_exp (extend env (Var x) (Lambda (y, inline_exp env e3))) e2) else LetVal (x, v, inline_exp env e2)
-      | _ -> LetVal (x, v, inline_exp env e2))
-    | LetCall (x, op1, op2, e2) ->
-      (match env op1 with
-        Some (Lambda (y, e3)) -> change (splice x (LetVal (y, (Op op2), e3)) (inline_exp env e2))
-      |	_ -> LetCall (x, op1, op2, inline_exp env e2))
-    | LetIf (x, op, e2, e3, e4) -> LetIf (x, op, inline_exp env e2, inline_exp env e3, inline_exp env e4)
+      | Lambda (y, e3) -> print_string ("adding to env " ^ x ^"\n");if inline_threshold e3 then change (inline_exp (extend env (Var x) (Lambda (y, inline_exp env e3))) e2) else LetVal (x, v, inline_exp env e2)
+        | _ -> print_string ("inline LetVal 2 not adding to env " ^ x ^ "\n"); LetVal (x, v, inline_exp env e2))
+        | LetCall (x, op1, op2, e2) ->
+        (match env op1 with
+          Some (Lambda (y, e3)) ->
+            print_string ("inline LetCall found in env: " ^ x ^ "\n");
+            change (splice x (LetVal (y, (Op op2), e3)) (inline_exp env e2))
+        |	_ -> print_string ("inline LetCall didn't find: " ^ x ^ "\n");
+          LetCall (x, op1, op2, inline_exp env e2))
+    | LetIf (x, op, e2, e3, e4) -> 
+        print_string ("inline LetIf: " ^ x ^ "\n");
+        LetIf (x, op, inline_exp env e2, inline_exp env e3, inline_exp env e4)
   in
-  inline_exp empty_env e
+  print_string "start_inline\n";
+  inline_exp empty_env e 
 
 (* reduction of conditions
  * - Optimize conditionals based on contextual information, e.g.
