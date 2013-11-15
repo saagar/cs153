@@ -237,24 +237,6 @@ and cfold_value (name : var) (env : var -> (operand * operand) option) (v : valu
     (match env x with
       Some (op1, op2) -> (change (Op op2), env)
     | None -> (v, env))
-(*
-    (let rec fst_helper (z : var) : int option =
-       match env z with
-	 Some (Int i, op2) -> Some i
-       | Some (Var y, op2) -> fst_helper y
-       | None -> None in
-     match fst_helper x with
-       Some i -> (change (Op (Int i)), env)
-     | None -> (v, env))
-  | PrimApp (S.Snd, [Var x]) ->
-    (let rec snd_helper (z : var) : int option =
-       match env z with
-	 Some (op1, Int i) -> Some i
-       | Some (op1, Var y) -> snd_helper y
-       | None -> None in
-     match snd_helper x with
-       Some i -> (change (Op (Int i)), env)
-     | None -> (v, env))*)
   | _ -> (v, env)
       
 let cfold (e : exp) : exp = cfold_exp empty_env e
