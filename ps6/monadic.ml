@@ -424,8 +424,8 @@ let inline (inline_threshold: exp -> bool) (e:exp) : exp =
  *   (since x < 1 implies x < 2)
  * - This is similar to constant folding + logic programming
  *)
-let redtest (e:exp) : exp = e(*raise EXTRA_CREDIT *)
- 
+let redtest (e:exp) : exp = e
+(*let redtest (e:exp) : exp = raise EXTRA_CREDIT *)
 
 (* optimize the code by repeatedly performing optimization passes until
  * there is no change. *)
