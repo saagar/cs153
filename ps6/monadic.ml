@@ -222,6 +222,7 @@ and cfold_value (v : value) : value =
   | PrimApp (S.Times, [Var x; Int 1]) -> change (Op (Var x))
   | PrimApp (S.Div, [Int i; Int j]) -> if j = 0 then v else change (Op (Int (i / j)))
   | PrimApp (S.Div, [Var x; Int 1]) -> change (Op (Var x))
+  (*| PrimApp (S.Eq, [*)
   (*| PrimApp (S.Cons
   | PrimApp (S.Fst*)
   | _ -> raise TODO
@@ -279,26 +280,19 @@ let count_table (e:exp) =
     occ_e e; table
 
 (* dead code elimination *)
-(* S, NOTE: mostly the same as the lecture slides.
- * i've extended each of the calls to do the same as the LetVal from the slides,
- * which makes sense. also LetVal has a lambda in it and lambdas contain exps *)
 let dce (e:exp) : exp = 
   let counts = count_table e in
   let rec dce_helper (e1:exp) =
     match e1 with
     | Return w -> Return w
     | LetVal(x, Lambda(v, l_exp), e) ->
-        if get_uses counts x = 0 then change(dce_helper e)
-        (* s: NOTE: i think this is correct, because let x = Lambda() in exp,
-         * but x will get dropped by dce_helper *)
-        else LetVal(x, Lambda(v, dce_helper l_exp), dce_helper e)
+      if get_uses counts x = 0 then change (dce_helper e)
+      else LetVal(x, Lambda(v, dce_helper l_exp), dce_helper e)
     | LetVal(x, v, e) ->
-        if get_uses counts x = 0 then change(dce_helper e) 
-        else LetVal(x, v, dce_helper e)
-    | LetCall(x, f, w, e) ->
-        LetCall(x, f, w, dce_helper e)
-    | LetIf(x, w, e1, e2, e) ->
-        LetIf(x, w, dce_helper e1, dce_helper e2, dce_helper e)
+      if get_uses counts x = 0 then change (dce_helper e) 
+      else LetVal(x, v, dce_helper e)
+    | LetCall(x, f, w, e) -> LetCall(x, f, w, dce_helper e)
+    | LetIf(x, w, e1, e2, e) -> LetIf(x, w, dce_helper e1, dce_helper e2, dce_helper e)
   in dce_helper e
 
 (* (1) inline functions 
@@ -365,7 +359,21 @@ let size_inline_thresh (i : int) (e : exp) : bool =
 (* inlining 
  * only inline the expression e if (inline_threshold e) return true.
  *)
-let inline (inline_threshold: exp -> bool) (e:exp) : exp = raise TODO 
+let inline (inline_threshold: exp -> bool) (e:exp) : exp =
+  let rec inline_exp (env : operand -> value option) (e1 : exp) =
+    match e1 with
+      Return op -> e1
+    | LetVal (x, v, e2) ->
+      (match v with
+	Lambda (y, e3) -> if inline_threshold e3 then change (inline_exp (extend env (Var x) (Lambda (y, inline_exp env e3))) e2) else LetVal (x, v, inline_exp env e2)
+      | _ -> LetVal (x, v, inline_exp env e2))
+    | LetCall (x, op1, op2, e2) ->
+      (match env op1 with
+        Some (Lambda (y, e3)) -> change (splice x (LetVal (y, (Op op2), e3)) (inline_exp env e2))
+      |	_ -> LetCall (x, op1, op2, inline_exp env e2))
+    | LetIf (x, op, e2, e3, e4) -> LetIf (x, op, inline_exp env e2, inline_exp env e3, inline_exp env e4)
+  in
+  inline_exp empty_env e
 
 (* reduction of conditions
  * - Optimize conditionals based on contextual information, e.g.
