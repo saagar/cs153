@@ -220,6 +220,8 @@ and cfold_value (v : value) : value =
   | PrimApp (S.Times, [Int i; Int j]) -> change (Op (Int (i * j)))
   | PrimApp (S.Times, [Int 1; Var x]) -> change (Op (Var x))
   | PrimApp (S.Times, [Var x; Int 1]) -> change (Op (Var x))
+  | PrimApp (S.Times, [Var x; Int 0]) -> change (Op (Int 0))
+  | PrimApp (S.Times, [Int 0; Var x]) -> change (Op (Int 0))
   | PrimApp (S.Div, [Int i; Int j]) -> if j = 0 then v else change (Op (Int (i / j)))
   | PrimApp (S.Div, [Var x; Int 1]) -> change (Op (Var x))
   (*| PrimApp (S.Eq, [*)
