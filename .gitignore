@@ -65,3 +65,4 @@ ps6/monadic
 ps6/ps6_*
 ps6/*_lex.ml
 ps6/*_parse.ml
+ps6/*.out
