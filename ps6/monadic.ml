@@ -192,10 +192,10 @@ let cse (e : exp) : exp =
 (* constant folding
  * Apply primitive operations which can be evaluated. e.g. fst (1,2) = 1
  *)
-let rec cfold_exp (env : var -> value option) (e : exp) : exp =
+let rec cfold_exp (env : var -> (operand * operand) option) (e : exp) : exp =
   match e with
     Return op -> Return op
-  | LetVal (x, v, e1) -> LetVal (x, cfold_value env v, cfold_exp env e1)
+  | LetVal (x, v, e1) -> let (value, new_env) = cfold_value x env v in LetVal (x, value, cfold_exp new_env e1)
   | LetCall (x, op1, op2, e1) -> LetCall (x, op1, op2, cfold_exp env e1)
   | LetIf (x, op1, e1, e2, e3) ->
     (match op1 with
@@ -207,31 +207,56 @@ and cfold_flatten (x : var) (e1 : exp) (e2 : exp) : exp =
   | LetVal (y, v, e3) -> LetVal (y, v, cfold_flatten x e3 e2)
   | LetCall (y, op1, op2, e3) -> LetCall (y, op1, op2, cfold_flatten x e3 e2)
   | LetIf (y, op, e3, e4, e5) -> LetIf (y, op, e3, e4, cfold_flatten x e5 e2)
-and cfold_value (env : var -> value option) (v : value) : value =
+and cfold_value (name : var) (env : var -> (operand * operand) option) (v : value) : value * (var -> (operand * operand) option) =
   match v with
-    Lambda (x, e) -> Lambda (x, cfold_exp env e)
-  | Op op -> Op op
-  | PrimApp (S.Plus, [Int i; Int j]) -> change (Op (Int (i + j)))
-  | PrimApp (S.Plus, [Int 0; Var x]) -> change (Op (Var x))
-  | PrimApp (S.Plus, [Var x; Int 0]) -> change (Op (Var x))
-  | PrimApp (S.Minus, [Int i; Int j]) -> change (Op (Int (i - j)))
-  | PrimApp (S.Minus, [Var x; Int 0]) -> change (Op (Var x))
-  | PrimApp (S.Minus, [Var x; Var y]) -> if x = y then change (Op (Int (0))) else v
-  | PrimApp (S.Times, [Int i; Int j]) -> change (Op (Int (i * j)))
-  | PrimApp (S.Times, [Int 1; Var x]) -> change (Op (Var x))
-  | PrimApp (S.Times, [Var x; Int 1]) -> change (Op (Var x))
-  | PrimApp (S.Times, [Var x; Int 0]) -> change (Op (Int 0))
-  | PrimApp (S.Times, [Int 0; Var x]) -> change (Op (Int 0))
-  | PrimApp (S.Div, [Int i; Int j]) -> if j = 0 then v else change (Op (Int (i / j)))
-  | PrimApp (S.Div, [Var x; Int 1]) -> change (Op (Var x))
-  | PrimApp (S.Eq, [Int i; Int j]) -> change (Op (Int (if i = j then 1 else 0)))
-  | PrimApp (S.Eq, [Var x; Var y]) -> if x = y then change (Op (Int 1)) else v
-  | PrimApp (S.Lt, [Int i; Int j]) -> change (Op (Int (if i < j then 1 else 0)))
-  | PrimApp (S.Lt, [Var x; Var y]) -> if x = y then change (Op (Int 0)) else v
-  (*| PrimApp (S.Cons
-  | PrimApp (S.Fst*)
-  | _ -> raise TODO
-
+    Lambda (x, e) -> (Lambda (x, cfold_exp env e), env)
+  | Op op -> (v, env)
+  | PrimApp (S.Plus, [Int i; Int j]) -> (change (Op (Int (i + j))), env)
+  | PrimApp (S.Plus, [Int 0; Var x]) -> (change (Op (Var x)), env)
+  | PrimApp (S.Plus, [Var x; Int 0]) -> (change (Op (Var x)), env)
+  | PrimApp (S.Minus, [Int i; Int j]) -> (change (Op (Int (i - j))), env)
+  | PrimApp (S.Minus, [Var x; Int 0]) -> (change (Op (Var x)), env)
+  | PrimApp (S.Minus, [Var x; Var y]) -> ((if x = y then change (Op (Int (0))) else v), env)
+  | PrimApp (S.Times, [Int i; Int j]) -> (change (Op (Int (i * j))), env)
+  | PrimApp (S.Times, [Int 1; Var x]) -> (change (Op (Var x)), env)
+  | PrimApp (S.Times, [Var x; Int 1]) -> (change (Op (Var x)), env)
+  | PrimApp (S.Times, [Var x; Int 0]) -> (change (Op (Int 0)), env)
+  | PrimApp (S.Times, [Int 0; Var x]) -> (change (Op (Int 0)), env)
+  | PrimApp (S.Div, [Int i; Int j]) -> ((if j = 0 then v else change (Op (Int (i / j)))), env)
+  | PrimApp (S.Div, [Var x; Int 1]) -> (change (Op (Var x)), env)
+  | PrimApp (S.Eq, [Int i; Int j]) -> (change (Op (Int (if i = j then 1 else 0))), env)
+  | PrimApp (S.Eq, [Var x; Var y]) -> ((if x = y then change (Op (Int 1)) else v), env)
+  | PrimApp (S.Lt, [Int i; Int j]) -> (change (Op (Int (if i < j then 1 else 0))), env)
+  | PrimApp (S.Lt, [Var x; Var y]) -> ((if x = y then change (Op (Int 0)) else v), env)
+  | PrimApp (S.Cons, [op1; op2]) -> (v, extend env name (op1, op2))
+  | PrimApp (S.Fst, [Var x]) ->
+    (match env x with
+      Some (op1, op2) -> (change (Op op1), env)
+    | None -> (v, env))
+  | PrimApp (S.Snd, [Var x]) ->
+    (match env x with
+      Some (op1, op2) -> (change (Op op2), env)
+    | None -> (v, env))
+(*
+    (let rec fst_helper (z : var) : int option =
+       match env z with
+	 Some (Int i, op2) -> Some i
+       | Some (Var y, op2) -> fst_helper y
+       | None -> None in
+     match fst_helper x with
+       Some i -> (change (Op (Int i)), env)
+     | None -> (v, env))
+  | PrimApp (S.Snd, [Var x]) ->
+    (let rec snd_helper (z : var) : int option =
+       match env z with
+	 Some (op1, Int i) -> Some i
+       | Some (op1, Var y) -> snd_helper y
+       | None -> None in
+     match snd_helper x with
+       Some i -> (change (Op (Int i)), env)
+     | None -> (v, env))*)
+  | _ -> (v, env)
+      
 let cfold (e : exp) : exp = cfold_exp empty_env e
 
 (* To support a somewhat more efficient form of dead-code elimination and
@@ -387,7 +412,7 @@ let inline (inline_threshold: exp -> bool) (e:exp) : exp =
  *   (since x < 1 implies x < 2)
  * - This is similar to constant folding + logic programming
  *)
-let redtest (e:exp) : exp = raise EXTRA_CREDIT 
+let redtest (e:exp) : exp = e(*raise EXTRA_CREDIT *)
  
 
 (* optimize the code by repeatedly performing optimization passes until
