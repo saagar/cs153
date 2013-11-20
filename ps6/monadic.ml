@@ -1,3 +1,4 @@
+(* Saagar Deshpande and Emmet Jao *)
 (* Defines our Monadic Intermediate Form, conversion of Scish AST to
  * Monadic Form, and various optimizations on Monadic Form. *)
 module S = Scish_ast
@@ -173,12 +174,36 @@ let cprop e = cprop_exp empty_env e
 
 (* common sub-value elimination -- as in the slides *)
 let cse (e : exp) : exp =
+  let op_sort_helper (op1, op2) =
+    match (op1, op2) with
+      (Int i, Int j) -> if i < j then [op1; op2] else [op2; op1]
+    | (Int i, Var x) -> [op1; op2]
+    | (Var x, Int i) -> [op2; op1]
+    | (Var x, Var y) -> if x < y then [op1; op2] else [op2; op1]
+  in
+  let rec op_sort (v : value) : value =
+    match v with
+      PrimApp (p, ops) ->
+        (match (p, ops) with
+          (S.Plus, [op1; op2]) -> PrimApp (S.Plus, op_sort_helper (op1, op2))
+        | (S.Times, [op1; op2]) -> PrimApp (S.Times, op_sort_helper (op1, op2))
+        | (S.Eq, [op1; op2]) -> PrimApp (S.Eq, op_sort_helper (op1, op2))
+        | _ -> v)
+    | Lambda (x, e1) -> Lambda (x, op_sort_exp e1)
+    | Op op -> v
+  and op_sort_exp (e1 : exp) : exp =
+    match e1 with
+      Return op -> e1
+    | LetVal (x, v, e2) -> LetVal (x, op_sort v, op_sort_exp e2)
+    | LetCall (x, op1, op2, e2) -> LetCall (x, op1, op2, op_sort_exp e2)
+    | LetIf (x, op, e2, e3, e4) -> LetIf (x, op, op_sort_exp e2, op_sort_exp e3, op_sort_exp e4)
+  in
   let rec cse_exp (env : value->var option) (e : exp) : exp =
     match e with
     | Return w -> Return w
     | LetVal(x, v, e) ->
-      (match env v with
-      | None -> LetVal(x, cse_val env v, cse_exp (extend env v x) e)
+      (match env (op_sort v) with
+      | None -> LetVal(x, cse_val env v, cse_exp (extend env (op_sort v) x) e)
       | Some y -> change (LetVal(x, Op(Var y), cse_exp env e)))
     | LetCall(x, f, w, e) -> LetCall(x, f, w, cse_exp env e)
     | LetIf(x, w, e1, e2, e) -> LetIf(x, w, cse_exp env e1, cse_exp env e2, cse_exp env e)
@@ -400,8 +425,8 @@ let inline (inline_threshold: exp -> bool) (e:exp) : exp =
  *   (since x < 1 implies x < 2)
  * - This is similar to constant folding + logic programming
  *)
-let redtest (e:exp) : exp = e(*raise EXTRA_CREDIT *)
- 
+let redtest (e:exp) : exp = e
+(*let redtest (e:exp) : exp = raise EXTRA_CREDIT *)
 
 (* optimize the code by repeatedly performing optimization passes until
  * there is no change. *)
