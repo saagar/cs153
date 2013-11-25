@@ -34,16 +34,31 @@ module OperandSet = Set.Make(struct
  * definition for now.  *)
 type interfere_graph = operand InterfereGraph.graph
 
+let inst_gen inst : OperandSet.t =
+  let opset = OperandSet.empty in
+  match inst with
+  | Label _ | Jump _ | Return -> opset
+  | Move (o1, o2) -> OperandSet.add o2 opset
+  | Arith (o1, o2, _, o3) -> OperandSet.add o2 (OperandSet.add o3 opset)
+  | Load (o1, o2, _) -> OperandSet.add o2 opset
+  | Store (o1, _, o2) -> OperandSet.add o1 (OperandSet.add o2 opset)
+  | Call op -> OperandSet.add op opset
+  | If (o1, _, o2, _, _) -> OperandSet.add o1 (OperandSet.add o2 opset)
+
+let inst_kill inst : OperandSet.t =
+  let killset = OperandSet.empty in
+  match inst with
+  | Move (o1, _)
+  | Arith (o1, _, _, _) 
+  | Load (o1, _, _) -> OperandSet.add o1 killset
+  | _ -> killset
+  
 (* given a function (i.e., list of basic blocks), construct the
  * interference graph for that function.  This will require that
  * you build a dataflow analysis for calculating what set of variables
  * are live-in and live-out for each program point. *)
 let build_interfere_graph (f : func) : interfere_graph =
   let insts = List.flatten f in
-  let inst_gen inst : OperandSet.t =
-    raise Implement_Me in
-  let inst_kill inst : OperandSet.t =
-    raise Implement_Me in
   let rec live_in_init instructions =
     match instructions with
       [] -> []
