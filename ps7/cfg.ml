@@ -44,14 +44,44 @@ let build_interfere_graph (f : func) : interfere_graph =
     raise Implement_Me in
   let inst_kill inst : OperandSet.t =
     raise Implement_Me in
-  let rec live_in_init instructions =
+  let rec live_in_init (instructions : inst list) : OperandSet.t list =
     match instructions with
       [] -> []
     | hd :: tl -> inst_gen hd :: live_in_init tl in
-  let rec live_out_init instructions =
+  let rec live_out_init (instructions : inst list) : OperandSet.t list =
     match instructions with
       [] -> []
     | hd :: tl -> OperandSet.empty :: live_out_init tl in
+  let live_in_full = live_in_init insts in
+  let live_out_full = live_out_init insts in
+  let rec find_in live_in instructions lbl =
+    match instructions, live_in with
+      [], _ | _, [] -> raise FatalError (* failed to find label in the instruction list *)
+    | hd :: tl, hd2 :: tl2 ->
+      (match hd with
+	Label l -> if l = lbl then hd2 else find_in tl2 tl lbl
+      | _ -> find_in tl2 tl lbl) in
+  let rec update_lives instructions live_in live_out accum : (OperandSet.t list * OperandSet.t list) =
+    match instructions with
+      [] -> accum
+    | hd :: tl ->
+      (let out =
+	 match hd with
+	   Jump lbl -> find_in live_in_full insts lbl
+	 | If (o1, c, o2, l1, l2) -> OperandSet.union (find_in live_in_full insts l1) (find_in live_in_full insts l2)
+	 | Return -> OperandSet.empty
+	 | _ ->
+	   (match live_in with
+	     [] -> raise FatalError (* should never happen because live_in and instructions should be the same length *)
+	   | hd2 :: [] -> OperandSet.empty
+	   | hd2 :: next :: tl2 -> next) in
+       match live_in, live_out with
+	 [], _ | _, [] -> raise FatalError (* should never happen because live_in, live_out, and instructions should be the same length *)
+       | hd2 :: tl2, hd3 :: tl3 ->
+	 (let live_in_rest, live_out_rest = accum in
+	  if OperandSet.equal out hd3 then update_lives tl tl2 tl3 (live_in_rest @ [hd2], live_out_rest @ [hd3])
+	  else (let new_in = OperandSet.union (inst_gen hd) (OperandSet.diff hd3 (inst_kill hd)) in
+		update_lives tl tl2 tl3 (live_in_rest @ [new_in], live_out_rest @ [out])))) in
   raise Implement_Me
 
 (* given an interference graph, generate a string representing it *)
