@@ -122,7 +122,18 @@ let build_interfere_graph (f : func) : interfere_graph =
     [] -> giraffe
     | hd :: tl -> graph_init tl (add_inst_to_graph hd giraffe) in
   let igraph = graph_init insts InterfereGraph.empty_graph in
-  let add_clique (t:OperandSet.t) (g:interfere_graph) = raise Implement_Me in
+  let add_clique (t:OperandSet.t) (g:interfere_graph) = 
+    let elts = OperandSet.elements t in
+    let rec add_edges_for_item item things_added graph : interfere_graph =
+      (match things_added with
+      | [] -> graph
+      | hd::tl -> add_edges_for_item item tl (InterfereGraph.add_edge graph item hd false)) in 
+    let rec add_clique_helper things_to_add things_added graph : interfere_graph =
+      match things_to_add with
+      | [] -> graph
+      | hd::tl -> add_clique_helper tl (hd::things_added) (add_edges_for_item hd things_added graph) in
+    add_clique_helper elts [] g
+    in
   let rec build_graph g instructions live_in =
     match instructions with
       [] -> g
