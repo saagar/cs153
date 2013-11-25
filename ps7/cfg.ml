@@ -121,7 +121,9 @@ let build_interfere_graph (f : func) : interfere_graph =
     match instructions with
     [] -> giraffe
     | hd :: tl -> graph_init tl (add_inst_to_graph hd giraffe) in
+  (* new interference graph *)
   let igraph = graph_init insts InterfereGraph.empty_graph in
+  (* add a set into the graph *)
   let add_clique (t:OperandSet.t) (g:interfere_graph) = 
     let elts = OperandSet.elements t in
     let rec add_edges_for_item item things_added graph : interfere_graph =
