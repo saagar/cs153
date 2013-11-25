@@ -28,6 +28,8 @@ module OperandSet = Set.Make(struct
                                let compare = compare
                              end)
 
+(* Gen for instructions. Returns operand set containing all Gens required for
+ * one instruction *)
 let inst_gen inst : OperandSet.t =
   let opset = OperandSet.empty in
   match inst with
@@ -39,6 +41,8 @@ let inst_gen inst : OperandSet.t =
   | Call op -> OperandSet.add op opset
   | If (o1, _, o2, _, _) -> OperandSet.add o1 (OperandSet.add o2 opset)
 
+(* Kill for instructions. Returns operand set containing all Kills required for
+ * one instruction *)
 let inst_kill inst : OperandSet.t =
   let killset = OperandSet.empty in
   match inst with
@@ -47,6 +51,7 @@ let inst_kill inst : OperandSet.t =
   | Load (o1, _, _) -> OperandSet.add o1 killset
   | _ -> killset
 
+(* for convergence *)
 let changed : bool ref = ref true
 let change x = (changed := true; x)
 
@@ -56,8 +61,10 @@ let change x = (changed := true; x)
  * definition for now.  *)
 type interfere_graph = operand InterfereGraph.graph
 
+(* add all operands for the given instruction to  the interference graph. *)
 let add_inst_to_graph inst graph : interfere_graph =
   match inst with
+  (* these do nothing *)
   | Label _ | Jump _ | Return -> graph
   | Move (o1, o2) -> InterfereGraph.add_node (InterfereGraph.add_node graph o1) o2
   | Arith (o1, o2, _, o3) -> InterfereGraph.add_node (InterfereGraph.add_node (InterfereGraph.add_node graph o1) o2) o3
@@ -66,12 +73,15 @@ let add_inst_to_graph inst graph : interfere_graph =
   | Call op -> InterfereGraph.add_node graph op
   | If (o1, _, o2, _, _) -> InterfereGraph.add_node (InterfereGraph.add_node graph o1) o2
 
+(* prune the interference graph nodes
+ * only keep Var and Reg nodes in the graph *)
 let prune_interfere_graph_nodes (g : interfere_graph) : interfere_graph =
   let all_nodes = g.InterfereGraph.nodes in
   let rec prune_node_helper (node_list : operand list) : operand list =
     match node_list with
     | [] -> []
     | hd::tl ->
+        (* should keep Vars and Regs, ignore everything else *)
         (match hd with 
         | Var _ -> hd :: (prune_node_helper tl)
         | Reg _ -> hd :: (prune_node_helper tl)
@@ -87,6 +97,8 @@ let prune_interfere_graph_nodes (g : interfere_graph) : interfere_graph =
  * you build a dataflow analysis for calculating what set of variables
  * are live-in and live-out for each program point. *)
 let build_interfere_graph (f : func) : interfere_graph =
+  (* flatten the blocks into a pure list of instructions. we will do livein and
+   * liveout for each instruction *)
   let insts = List.flatten f in
   let rec live_in_init (instructions : inst list) : OperandSet.t list =
     match instructions with
@@ -143,10 +155,13 @@ let build_interfere_graph (f : func) : interfere_graph =
   (* add a set into the graph *)
   let add_clique (t:OperandSet.t) (g:interfere_graph) = 
     let elts = OperandSet.elements t in
+    (* for a single node in a LiveIn set, add all edges to elts in LiveIn set *)
     let rec add_edges_for_item item things_added graph : interfere_graph =
       (match things_added with
       | [] -> graph
       | hd::tl -> add_edges_for_item item tl (InterfereGraph.add_edge graph item hd false)) in 
+    (* for each LiveIn set, add all of the edges between all possible pairs in
+    * the set. *)
     let rec add_clique_helper things_to_add things_added graph : interfere_graph =
       match things_to_add with
       | [] -> graph
@@ -163,6 +178,7 @@ let build_interfere_graph (f : func) : interfere_graph =
   build_graph igraph insts final_live_in
 
 (* given an interference graph, generate a string representing it *)
+(* move edges should be dashed, non move edges should be solid *)
 let str_of_interfere_graph (g : interfere_graph) : string =
   let graph_str = "graph interfere_graph {" in
   let rec edge2string (edges : ('a * 'a) list) (style : string) : string =
