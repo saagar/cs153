@@ -107,7 +107,7 @@ let build_interfere_graph (f : func) : interfere_graph =
        | hd2 :: tl2, hd3 :: tl3 ->
 	 (let live_in_rest, live_out_rest = accum in
 	  if OperandSet.equal out hd3 then update_lives tl tl2 tl3 (live_in_rest @ [hd2], live_out_rest @ [hd3])
-	  else (let new_in = OperandSet.union (inst_gen hd) (OperandSet.diff hd3 (inst_kill hd)) in
+	  else (let new_in = OperandSet.union (inst_gen hd) (OperandSet.diff out (inst_kill hd)) in
 		change (update_lives tl tl2 tl3 (live_in_rest @ [new_in], live_out_rest @ [out]))))) in
   let rec loop live_in live_out =
     if (!changed) then
