@@ -108,7 +108,9 @@ let build_interfere_graph (f : func) : interfere_graph =
     match instructions with
       [] -> []
     | hd :: tl -> OperandSet.empty :: live_out_init tl in
+  (* all live in sets are Gen(instruction) at start *)
   let live_in_full = live_in_init insts in
+  (* all live out sets are empty at start.*)
   let live_out_full = live_out_init insts in
   let rec find_in live_in instructions lbl =
     match instructions, live_in with
