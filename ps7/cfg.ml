@@ -16,7 +16,8 @@ struct
   let edge_mem g v1 v2 move_related =
     (let (vv1, vv2) = if v1 < v2 then (v1, v2) else (v2, v1) in
      if move_related then List.mem (vv1, vv2) g.move_edges else List.mem (vv1, vv2) g.non_move_edges)
-  let add_edge g v1 v2 move_related = if edge_mem g v1 v2 move_related then g else
+  let add_edge g v1 v2 move_related = 
+    if (edge_mem g v1 v2 move_related) || (node_mem g v1 = false) || (node_mem g v2 = false) then g else
     (let (vv1, vv2) = if v1 < v2 then (v1, v2) else (v2, v1) in
      if move_related then { nodes = g.nodes; move_edges = (vv1, vv2) :: g.move_edges; non_move_edges = g.non_move_edges }
      else { nodes = g.nodes; move_edges = g.move_edges; non_move_edges = (vv1, vv2) :: g.non_move_edges })
@@ -64,7 +65,23 @@ let add_inst_to_graph inst graph : interfere_graph =
   | Store (o1, _, o2) -> InterfereGraph.add_node (InterfereGraph.add_node graph o1) o2
   | Call op -> InterfereGraph.add_node graph op
   | If (o1, _, o2, _, _) -> InterfereGraph.add_node (InterfereGraph.add_node graph o1) o2
- 
+
+let prune_interfere_graph_nodes (g : interfere_graph) : interfere_graph =
+  let all_nodes = g.InterfereGraph.nodes in
+  let rec prune_node_helper (node_list : operand list) : operand list =
+    match node_list with
+    | [] -> []
+    | hd::tl ->
+        (match hd with 
+        | Var _ -> hd :: (prune_node_helper tl)
+        | Reg _ -> hd :: (prune_node_helper tl)
+        | _ -> prune_node_helper tl
+        )
+  in
+  { InterfereGraph.nodes = (prune_node_helper all_nodes) ; 
+    InterfereGraph.move_edges = g.InterfereGraph.move_edges; 
+    InterfereGraph.non_move_edges = g.InterfereGraph.non_move_edges }
+
 (* given a function (i.e., list of basic blocks), construct the
  * interference graph for that function.  This will require that
  * you build a dataflow analysis for calculating what set of variables
@@ -121,8 +138,8 @@ let build_interfere_graph (f : func) : interfere_graph =
     match instructions with
     [] -> giraffe
     | hd :: tl -> graph_init tl (add_inst_to_graph hd giraffe) in
-  (* new interference graph *)
-  let igraph = graph_init insts InterfereGraph.empty_graph in
+  (* new interference graph with only var and register nodes*)
+  let igraph = prune_interfere_graph_nodes (graph_init insts InterfereGraph.empty_graph) in
   (* add a set into the graph *)
   let add_clique (t:OperandSet.t) (g:interfere_graph) = 
     let elts = OperandSet.elements t in
