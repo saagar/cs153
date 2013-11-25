@@ -141,8 +141,8 @@ let str_of_interfere_graph (g : interfere_graph) : string =
     | (t,f)::tl -> ("\n\t" ^ op2string t ^ " -- " ^ op2string f ^ style ^ ";") ^ 
                     (edge2string tl style)
   in
-  graph_str ^ (edge2string g.InterfereGraph.move_edges "") ^ 
-  (edge2string g.InterfereGraph.non_move_edges "[style=dashed]") ^ "\n}"
+  graph_str ^ (edge2string g.InterfereGraph.move_edges "[style=dashed]") ^ 
+  (edge2string g.InterfereGraph.non_move_edges "") ^ "\n}"
 
 (*******************************************************************)
 (* PS8 TODO:  graph-coloring, coalescing register assignment *)
