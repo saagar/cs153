@@ -85,6 +85,7 @@ let prune_interfere_graph_nodes (g : interfere_graph) : interfere_graph =
         (* should keep Vars and Regs, ignore everything else *)
         (match hd with 
         | Var _ -> hd :: (prune_node_helper tl)
+        (*| Reg _ | Lab _ -> hd :: (prune_node_helper tl)*)
         | Reg _ -> hd :: (prune_node_helper tl)
         | _ -> prune_node_helper tl
         )
@@ -212,13 +213,25 @@ let cfg_to_mips (f : func ) : Mips.inst list =
     raise Implement_Me
 
 
-
 (*******************************************************************)
 (* Command-Line Interface for printing CFG. You probably will not 
     need to modify this for PS7, but will definitely need to for 
     PS8. Feel free to add additional command-line options as you
     see fit (e.g. -printmips, -evalmips, -printcfg, etc...). 
     Please make sure to document any changes you make.
+*)
+(*
+let our_func = 
+  [Label("lab");
+  Move(Var("c"),Int(10));
+  Move(Var("a"),Int(0));
+  Move(Var("N"),Int(12));
+  Arith(Var("b"),Var("a"),Plus,Int(1));
+  Arith(Var("c"),Var("c"),Plus,Var("b"));
+  Arith(Var("a"),Var("b"),Times,Int(2));
+  If(Var("a"),Lt,Var("N"),Jump("lab"),Jump("lab2"));
+  Label("lab2");
+  Return;]
 *)
 let parse_file() =
   let argv = Sys.argv in

@@ -1,0 +1,7 @@
+main() {
+  a = 5;
+  k = 2;
+  x = k;
+
+  return a;
+}
