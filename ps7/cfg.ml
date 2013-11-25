@@ -22,6 +22,12 @@ struct
      else { nodes = g.nodes; move_edges = g.move_edges; non_move_edges = (vv1, vv2) :: g.non_move_edges })
 end
 
+module OperandSet = Set.Make(struct
+                               type t = operand
+                               let compare = compare
+                             end)
+
+
 (* an interference graph maps a variable x to the set of variables that
  * y such that x and y are live at the same point in time.  It's up to
  * you how you want to represent the graph.  I've just put in a dummy
@@ -33,8 +39,20 @@ type interfere_graph = operand InterfereGraph.graph
  * you build a dataflow analysis for calculating what set of variables
  * are live-in and live-out for each program point. *)
 let build_interfere_graph (f : func) : interfere_graph =
-  (*let insts = List.flatten f in
-  let init_live_in*) raise Implement_Me
+  let insts = List.flatten f in
+  let inst_gen inst : OperandSet.t =
+    raise Implement_Me in
+  let inst_kill inst : OperandSet.t =
+    raise Implement_Me in
+  let rec live_in_init instructions =
+    match instructions with
+      [] -> []
+    | hd :: tl -> inst_gen hd :: live_in_init tl in
+  let rec live_out_init instructions =
+    match instructions with
+      [] -> []
+    | hd :: tl -> OperandSet.empty :: live_out_init tl in
+  raise Implement_Me
 
 (* given an interference graph, generate a string representing it *)
 let str_of_interfere_graph (g : interfere_graph) : string =
