@@ -55,6 +55,16 @@ let change x = (changed := true; x)
  * definition for now.  *)
 type interfere_graph = operand InterfereGraph.graph
 
+let add_inst_to_graph inst graph : interfere_graph =
+  match inst with
+  | Label _ | Jump _ | Return -> graph
+  | Move (o1, o2) -> InterfereGraph.add_node (InterfereGraph.add_node graph o1) o2
+  | Arith (o1, o2, _, o3) -> InterfereGraph.add_node (InterfereGraph.add_node (InterfereGraph.add_node graph o1) o2) o3
+  | Load (o1, o2, _) -> InterfereGraph.add_node (InterfereGraph.add_node graph o1) o2
+  | Store (o1, _, o2) -> InterfereGraph.add_node (InterfereGraph.add_node graph o1) o2
+  | Call op -> InterfereGraph.add_node graph op
+  | If (o1, _, o2, _, _) -> InterfereGraph.add_node (InterfereGraph.add_node graph o1) o2
+ 
 (* given a function (i.e., list of basic blocks), construct the
  * interference graph for that function.  This will require that
  * you build a dataflow analysis for calculating what set of variables
@@ -106,6 +116,12 @@ let build_interfere_graph (f : func) : interfere_graph =
        loop new_live_in new_live_out)
     else (live_in, live_out) in
   let (final_live_in, final_live_out) = changed := true; loop live_in_full live_out_full in
+  (* create an empty graph with all nodes from instructions *)
+  let rec graph_init (instructions : inst list) (giraffe : interfere_graph) : interfere_graph =
+    match instructions with
+    [] -> giraffe
+    | hd :: tl -> graph_init tl (add_inst_to_graph hd giraffe) in
+  let igraph = graph_init insts InterfereGraph.empty_graph in
   let add_clique (t:OperandSet.t) (g:interfere_graph) = raise Implement_Me in
   let rec build_graph g instructions live_in =
     match instructions with
@@ -114,8 +130,7 @@ let build_interfere_graph (f : func) : interfere_graph =
       (match live_in with
 	[] -> raise FatalError (* should never happen because instructions and live_in should be the same length *)
       | hd2 :: tl2 -> build_graph (add_clique hd2 g) tl tl2) in
-  let rec graph_with_nodes = raise Implement_Me in
-  build_graph InterfereGraph.empty_graph insts final_live_in
+  build_graph igraph insts final_live_in
 
 (* given an interference graph, generate a string representing it *)
 let str_of_interfere_graph (g : interfere_graph) : string =
