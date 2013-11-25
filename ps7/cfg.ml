@@ -46,6 +46,9 @@ let inst_kill inst : OperandSet.t =
   | Load (o1, _, _) -> OperandSet.add o1 killset
   | _ -> killset
 
+let changed : bool ref = ref true
+let change x = (changed := true; x)
+
 (* an interference graph maps a variable x to the set of variables that
  * y such that x and y are live at the same point in time.  It's up to
  * you how you want to represent the graph.  I've just put in a dummy
@@ -95,8 +98,24 @@ let build_interfere_graph (f : func) : interfere_graph =
 	 (let live_in_rest, live_out_rest = accum in
 	  if OperandSet.equal out hd3 then update_lives tl tl2 tl3 (live_in_rest @ [hd2], live_out_rest @ [hd3])
 	  else (let new_in = OperandSet.union (inst_gen hd) (OperandSet.diff hd3 (inst_kill hd)) in
-		update_lives tl tl2 tl3 (live_in_rest @ [new_in], live_out_rest @ [out])))) in
-  raise Implement_Me
+		change (update_lives tl tl2 tl3 (live_in_rest @ [new_in], live_out_rest @ [out]))))) in
+  let rec loop live_in live_out =
+    if (!changed) then
+      (let _ = changed := false in
+       let new_live_in, new_live_out = update_lives insts live_in live_out ([], []) in
+       loop new_live_in new_live_out)
+    else (live_in, live_out) in
+  let (final_live_in, final_live_out) = changed := true; loop live_in_full live_out_full in
+  let add_clique (t:OperandSet.t) (g:interfere_graph) = raise Implement_Me in
+  let rec build_graph g instructions live_in =
+    match instructions with
+      [] -> g
+    | hd :: tl ->
+      (match live_in with
+	[] -> raise FatalError (* should never happen because instructions and live_in should be the same length *)
+      | hd2 :: tl2 -> build_graph (add_clique hd2 g) tl tl2) in
+  let rec graph_with_nodes = raise Implement_Me in
+  build_graph InterfereGraph.empty_graph insts final_live_in
 
 (* given an interference graph, generate a string representing it *)
 let str_of_interfere_graph (g : interfere_graph) : string =
