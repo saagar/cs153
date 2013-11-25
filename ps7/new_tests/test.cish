@@ -1,0 +1,14 @@
+main() {
+   a = 3;
+   b = 5;
+   d = 4;
+   x = 100;
+   if (a>b) {
+     c = a+b;
+     d = 2;
+   } else {
+     0;
+   }
+   c = b*d;
+   return 5;
+}
