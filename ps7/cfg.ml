@@ -27,13 +27,6 @@ module OperandSet = Set.Make(struct
                                let compare = compare
                              end)
 
-
-(* an interference graph maps a variable x to the set of variables that
- * y such that x and y are live at the same point in time.  It's up to
- * you how you want to represent the graph.  I've just put in a dummy
- * definition for now.  *)
-type interfere_graph = operand InterfereGraph.graph
-
 let inst_gen inst : OperandSet.t =
   let opset = OperandSet.empty in
   match inst with
@@ -52,7 +45,13 @@ let inst_kill inst : OperandSet.t =
   | Arith (o1, _, _, _) 
   | Load (o1, _, _) -> OperandSet.add o1 killset
   | _ -> killset
-  
+
+(* an interference graph maps a variable x to the set of variables that
+ * y such that x and y are live at the same point in time.  It's up to
+ * you how you want to represent the graph.  I've just put in a dummy
+ * definition for now.  *)
+type interfere_graph = operand InterfereGraph.graph
+
 (* given a function (i.e., list of basic blocks), construct the
  * interference graph for that function.  This will require that
  * you build a dataflow analysis for calculating what set of variables
