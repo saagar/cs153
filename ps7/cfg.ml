@@ -7,6 +7,7 @@ exception FatalError
 (*******************************************************************)
 (* PS7 TODO:  interference graph construction *)
 
+(* our graph implementation uses an adjacency list *)
 module InterfereGraph =
 struct
   type 'a graph = { nodes : 'a list; move_edges : ('a * 'a) list; non_move_edges : ('a * 'a) list }
