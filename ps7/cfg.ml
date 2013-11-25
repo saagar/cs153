@@ -119,8 +119,15 @@ let build_interfere_graph (f : func) : interfere_graph =
 
 (* given an interference graph, generate a string representing it *)
 let str_of_interfere_graph (g : interfere_graph) : string =
-    raise Implement_Me
-
+  let graph_str = "graph interfere_graph {" in
+  let rec edge2string (edges : ('a * 'a) list) (style : string) : string =
+    match edges with
+    | [] -> ""
+    | (t,f)::tl -> ("\n\t" ^ op2string t ^ " -- " ^ op2string f ^ style ^ ";") ^ 
+                    (edge2string tl style)
+  in
+  graph_str ^ (edge2string g.InterfereGraph.move_edges "") ^ 
+  (edge2string g.InterfereGraph.non_move_edges "[style=dashed]") ^ "\n}"
 
 (*******************************************************************)
 (* PS8 TODO:  graph-coloring, coalescing register assignment *)

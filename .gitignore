@@ -66,3 +66,8 @@ ps6/ps6_*
 ps6/*_lex.ml
 ps6/*_parse.ml
 ps6/*.out
+
+# pset 7 ignore files
+ps7/ps7_cfg
+ps7/*_lex.ml
+ps7/*_parse.ml
