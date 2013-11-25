@@ -1,3 +1,4 @@
+(* Saagar Deshpande and Emmet Jao *)
 open Cfg_ast
 module C = Cish_ast
 exception Implement_Me
@@ -6,18 +7,34 @@ exception FatalError
 (*******************************************************************)
 (* PS7 TODO:  interference graph construction *)
 
+module InterfereGraph =
+struct
+  type 'a graph = { nodes : 'a list; move_edges : ('a * 'a) list; non_move_edges : ('a * 'a) list }
+  let empty_graph = { nodes = []; move_edges = []; non_move_edges = [] }
+  let node_mem g v = List.mem v g.nodes
+  let add_node g v = if node_mem g v then g else { nodes = v :: g.nodes; move_edges = g.move_edges; non_move_edges = g.non_move_edges }
+  let edge_mem g v1 v2 move_related =
+    (let (vv1, vv2) = if v1 < v2 then (v1, v2) else (v2, v1) in
+     if move_related then List.mem (vv1, vv2) g.move_edges else List.mem (vv1, vv2) g.non_move_edges)
+  let add_edge g v1 v2 move_related = if edge_mem g v1 v2 move_related then g else
+    (let (vv1, vv2) = if v1 < v2 then (v1, v2) else (v2, v1) in
+     if move_related then { nodes = g.nodes; move_edges = (vv1, vv2) :: g.move_edges; non_move_edges = g.non_move_edges }
+     else { nodes = g.nodes; move_edges = g.move_edges; non_move_edges = (vv1, vv2) :: g.non_move_edges })
+end
+
 (* an interference graph maps a variable x to the set of variables that
  * y such that x and y are live at the same point in time.  It's up to
  * you how you want to represent the graph.  I've just put in a dummy
  * definition for now.  *)
-type interfere_graph = unit
+type interfere_graph = operand InterfereGraph.graph
 
 (* given a function (i.e., list of basic blocks), construct the
  * interference graph for that function.  This will require that
  * you build a dataflow analysis for calculating what set of variables
  * are live-in and live-out for each program point. *)
 let build_interfere_graph (f : func) : interfere_graph =
-    raise Implement_Me
+  (*let insts = List.flatten f in
+  let init_live_in*) raise Implement_Me
 
 (* given an interference graph, generate a string representing it *)
 let str_of_interfere_graph (g : interfere_graph) : string =
