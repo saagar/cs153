@@ -25,6 +25,8 @@ ps8.zip
 *.cmi
 *.cmo
 *.mli
+# type annotations
+*.annot
 
 # grades
 grades/total.grade
