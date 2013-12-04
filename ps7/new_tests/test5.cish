@@ -1,7 +1,7 @@
 main() {
-  a = 5;
-  k = 2;
-  x = k;
+  let a = 5;
+  let k = 2;
+  let x = k;
 
   return a;
 }

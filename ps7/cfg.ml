@@ -101,6 +101,7 @@ let prune_interfere_graph_nodes (g : interfere_graph) : interfere_graph =
 let build_interfere_graph (f : func) : interfere_graph =
   (* flatten the blocks into a pure list of instructions. we will do livein and
    * liveout for each instruction *)
+  (*print_string (fun2string f);*)
   let insts = List.flatten f in
   let rec live_in_init (instructions : inst list) : OperandSet.t list =
     match instructions with
@@ -179,7 +180,18 @@ let build_interfere_graph (f : func) : interfere_graph =
       (match live_in with
 	[] -> raise FatalError (* should never happen because instructions and live_in should be the same length *)
       | hd2 :: tl2 -> build_graph (add_clique hd2 g) tl tl2) in
-  build_graph igraph insts final_live_in
+  (* the graph now has all interference (non-move-related) edges *)
+  let graph_without_move_edges = build_graph igraph insts final_live_in in
+  let rec add_move_edges instructions g : interfere_graph =
+    match instructions with
+      [] -> g
+    | hd::tl ->
+      (match hd with
+	Move (o1, o2) -> add_move_edges tl (InterfereGraph.add_edge g o1 o2 true)
+      | _ -> add_move_edges tl g)
+  in
+  let complete_graph = add_move_edges insts graph_without_move_edges in
+  complete_graph
 
 (* given an interference graph, generate a string representing it *)
 (* move edges should be dashed, non move edges should be solid *)
@@ -220,8 +232,8 @@ let cfg_to_mips (f : func ) : Mips.inst list =
     see fit (e.g. -printmips, -evalmips, -printcfg, etc...). 
     Please make sure to document any changes you make.
 *)
-(*
-let our_func = 
+
+(*let our_func = 
   [Label("lab");
   Move(Var("c"),Int(10));
   Move(Var("a"),Int(0));
@@ -229,10 +241,10 @@ let our_func =
   Arith(Var("b"),Var("a"),Plus,Int(1));
   Arith(Var("c"),Var("c"),Plus,Var("b"));
   Arith(Var("a"),Var("b"),Times,Int(2));
-  If(Var("a"),Lt,Var("N"),Jump("lab"),Jump("lab2"));
+  If(Var("a"),Lt,Var("N"), "lab", "lab2");
   Label("lab2");
-  Return;]
-*)
+  Return;]*)
+
 let parse_file() =
   let argv = Sys.argv in
   let _ = 
