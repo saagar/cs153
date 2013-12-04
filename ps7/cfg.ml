@@ -172,14 +172,37 @@ let build_interfere_graph (f : func) : interfere_graph =
       | [] -> graph
       | hd::tl -> add_clique_helper tl (hd::things_added) (add_edges_for_item hd things_added graph) in
     add_clique_helper elts [] g
-    in
+  in
+  (* for each element in the set, add edges from the element to each caller saves register *)
+  let add_caller_saves_interfere (t:OperandSet.t) (g:interfere_graph) =
+    let elts = OperandSet.elements t in
+    let all_caller_saves = List.map (fun x -> Reg x) 
+                      [Mips.R8;Mips.R9;Mips.R10;Mips.R11;Mips.R12;Mips.R13;Mips.R14;Mips.R15;Mips.R24;Mips.R25] in
+    let rec add_rest_caller_saves item caller_saves graph : interfere_graph =
+      (match caller_saves with
+      | [] -> graph
+      | hd::tl -> add_rest_caller_saves item tl (InterfereGraph.add_edge graph item hd false)) in 
+    let rec add_caller_saves_helper things_to_add graph : interfere_graph =
+      match things_to_add with
+	[] -> graph
+      | hd::tl -> add_caller_saves_helper tl (add_rest_caller_saves hd all_caller_saves graph) in
+    let rec add_nodes_to_graph nodes graph =
+      match nodes with
+	[] -> graph
+      | hd::tl -> add_nodes_to_graph tl (InterfereGraph.add_node graph hd) in
+    let graph_with_nodes = add_nodes_to_graph all_caller_saves g in
+    add_caller_saves_helper elts graph_with_nodes
+  in
   let rec build_graph g instructions live_in =
     match instructions with
       [] -> g
     | hd :: tl ->
       (match live_in with
 	[] -> raise FatalError (* should never happen because instructions and live_in should be the same length *)
-      | hd2 :: tl2 -> build_graph (add_clique hd2 g) tl tl2) in
+      | hd2 :: tl2 ->
+	(match hd with
+	  Call op -> build_graph (add_clique hd2 (add_caller_saves_interfere hd2 g)) tl tl2
+	| _ -> build_graph (add_clique hd2 g) tl tl2)) in
   (* the graph now has all interference (non-move-related) edges *)
   let graph_without_move_edges = build_graph igraph insts final_live_in in
   let rec add_move_edges instructions g : interfere_graph =
