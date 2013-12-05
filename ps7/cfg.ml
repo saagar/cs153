@@ -359,9 +359,19 @@ let reg_alloc (f : func) : func =
 
   raise Implement_Me
 
-(* Finally, translate the ouptut of reg_alloc to Mips instructions *)
-let cfg_to_mips (f : func ) : Mips.inst list = 
+(* Finally, translate the output of reg_alloc to Mips instructions *)
+let cfg_to_mips (f : func) : Mips.inst list = 
     raise Implement_Me
+
+let compile_func (f:C.func) : Mips.inst list =
+  let cfg = fn2blocks f in
+  cfg_to_mips (reg_alloc cfg)
+
+let compile_prog (prog:C.func list) : Mips.inst list =
+  raise Implement_Me
+
+let result2string (res:Mips.inst list) : string =
+  raise Implement_Me
 
 
 (*******************************************************************)
@@ -372,15 +382,21 @@ let cfg_to_mips (f : func ) : Mips.inst list =
     Please make sure to document any changes you make.
 *)
 
+let usage_string = "usage: " ^ Sys.argv.(0) ^ " [option] [file-to-parse]\nfor option, choose exactly one of:" ^
+  " -pig -pm -pcfg\n" ^
+  "-pig => print interference graph\n" ^
+  "-pm => print compiled MIPS\n" ^
+  "-pcfg => print control flow graph representation\n"
 
 let parse_file() =
   let argv = Sys.argv in
   let _ = 
-    if Array.length argv != 2
-    then (prerr_string ("usage: " ^ argv.(0) ^ " [file-to-parse]\n");
+    if Array.length argv != 3
+    then (prerr_string usage_string;
     exit 1) in
-  let ch = open_in argv.(1) in
-  Cish_parse.program Cish_lex.lexer (Lexing.from_channel ch)
+  let ch = open_in argv.(2) in
+  let option = argv.(1) in
+  (Cish_parse.program Cish_lex.lexer (Lexing.from_channel ch), option)
 
 let parse_stdin() = 
   Cish_parse.program Cish_lex.lexer (Lexing.from_channel stdin)
@@ -389,8 +405,12 @@ let print_interference_graph (():unit) (f : C.func) : unit =
   let graph = build_interfere_graph (fn2blocks f) in
   Printf.printf "%s\n%s\n\n" (C.fn2string f) (str_of_interfere_graph graph)
 
+let print_cfg () (f:C.func) : unit =
+  Printf.printf "%s\n%s\n\n" (C.fn2string f) (fun2string (fn2blocks f))
+
 let _ =
-  let prog = parse_file() in
-  List.fold_left print_interference_graph () prog
-
-
+  let cish_prog, option = parse_file() in
+  if option = "-pig" then List.fold_left print_interference_graph () cish_prog
+  else if option = "-pm" then print_string (result2string (compile_prog cish_prog))
+  else if option = "-pcfg" then List.fold_left print_cfg () cish_prog
+  else (prerr_string usage_string; exit 1)
