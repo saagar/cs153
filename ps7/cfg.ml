@@ -4,9 +4,6 @@ module C = Cish_ast
 exception Implement_Me
 exception FatalError
 
-(* Number of registers *)
-let k_reg = 5
-
 (*******************************************************************)
 (* PS7 TODO:  interference graph construction *)
 
@@ -285,6 +282,9 @@ let str_of_interfere_graph (g : interfere_graph) : string =
    function that doesn't use any variables (except for function
    names.)
 *)
+
+(* Number of registers *)
+let k_reg = 5
 
 let initial = ref OperandSet.empty
 let simplifyWorklist = ref OperandSet.empty
