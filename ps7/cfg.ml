@@ -318,8 +318,8 @@ let rec list_to_operandset list_to_convert : OperandSet.t =
 let reg_alloc (f : func) : func =
   (* Number of registers *)
   (* ignore 0, 1, 26, 27 - kernel
-   * ignore 29, 30 - sp and fp *)
-  let k_reg = 26 in
+   * ignore 29, 30, 31 - sp, fp, ra *)
+  let k_reg = 25 in
 
   let precolored = ref OperandSet.empty in
   let initial = ref OperandSet.empty in
