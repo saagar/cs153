@@ -363,10 +363,9 @@ let reg_alloc (f : func) : func =
       match nodelist with
       | [] -> ()
       | hd::tl -> if is_machine_register hd then precolored := OperandSet.add hd !precolored
-                  else initial := OperandSet.add hd !initial; filter_nodes tl;
+        else initial := OperandSet.add hd !initial; filter_nodes tl;
     in 
-    let _ = filter_nodes allnodes
-  in
+    filter_nodes allnodes in
   let make_worklist graph =
     let init_nodes = OperandSet.elements !initial in
     (match init_nodes with
