@@ -284,10 +284,42 @@ let str_of_interfere_graph (g : interfere_graph) : string =
    names.)
 *)
 
+(* helper for adjList[n] *)
+let rec get_edge_set edges node : OperandSet.t =
+  match edges with
+  | [] -> OperandSet.empty
+  | (a,b)::tl -> 
+      if (a = node) then OperandSet.add a (get_edge_set tl node)
+      else if (b = node) then OperandSet.add b (get_edge_set tl node)
+      else get_edge_set tl node
+
+(* adjList[n] should return set of nodes that interfere with n *)
+let get_adj_nodes graph node : OperandSet.t =
+  get_edge_set graph.InterfereGraph.non_move_edges node
+ 
+(* moveList[n] should return set of moves *)
+let get_node_moves graph node : MoveSet.t =
+  let move_related_edges = graph.InterfereGraph.move_edges in
+  let rec get_moves_set mr_edges node : MoveSet.t =
+    match mr_edges with
+    | [] -> MoveSet.empty
+    | (a,b)::tl ->
+        if (a = node) || (b = node) then MoveSet.add (a, b) (get_moves_set tl node)
+        else get_moves_set tl node
+  in
+  get_moves_set move_related_edges node 
+
+let rec list_to_operandset list_to_convert : OperandSet.t =
+    match list_to_convert with
+    | [] -> OperandSet.empty
+    | hd::tl -> OperandSet.add hd (list_to_operandset tl)
+
 
 let reg_alloc (f : func) : func =
   (* Number of registers *)
-  let k_reg = 5 in
+  (* ignore 0, 1, 26, 27 - kernel
+   * ignore 29, 30 - sp and fp *)
+  let k_reg = 26 in
 
   let precolored = ref OperandSet.empty in
   let initial = ref OperandSet.empty in
@@ -305,18 +337,12 @@ let reg_alloc (f : func) : func =
   let worklistMoves = ref MoveSet.empty in
   let activeMoves = ref MoveSet.empty in
 
-  (* adjList[n] should return set of nodes that interfere with n *)
-  let get_adj_nodes graph node : OperandSet.t =
-    let nonmove_edges = graph.InterfereGraph.non_move_edges in
-    let rec find_edges edges n node_set : OperandSet.t =
-      (match edges with
-      | [] -> node_set
-      | (a,b)::tl -> 
-          if (a = n) then find_edges tl n (OperandSet.add a node_set)
-          else if (b = n) then find_edges tl n (OperandSet.add b node_set)
-          else find_edges tl n node_set)
-    in
-    find_edges nonmove_edges node OperandSet.empty
+  (* Adjacent(n) should return adjList[n] - selectStack - coalescedNodes *)
+  let adjacent graph node : OperandSet.t =
+    let adjList_n = get_adj_nodes graph node in
+    let selectStackSet = list_to_operandset !selectStack in    
+    let onion = OperandSet.union selectStackSet !coalescedNodes in
+    OperandSet.diff adjList_n onion
   in
   let make_worklist graph =
     let init_nodes = OperandSet.elements !initial in
@@ -329,6 +355,8 @@ let reg_alloc (f : func) : func =
       else if (InterfereGraph.get_move_degree graph hd) > 0 then freezeWorklist := OperandSet.add hd !freezeWorklist
       else simplifyWorklist := OperandSet.add hd !simplifyWorklist)
   in
+(*   let enable_moves nodelist  *)
+
   raise Implement_Me
 
 (* Finally, translate the ouptut of reg_alloc to Mips instructions *)
