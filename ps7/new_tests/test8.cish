@@ -1,0 +1,15 @@
+f(x, y) {
+     return x + y;
+}
+
+main() {
+  let a = 5;
+  let k = 2;
+  let x = k;
+  {
+	a = f(x, k);
+  	{
+		let b = x;
+
+  return b;}}
+}
