@@ -4,6 +4,9 @@ module C = Cish_ast
 exception Implement_Me
 exception FatalError
 
+(* Number of registers *)
+let k_reg = 5
+
 (*******************************************************************)
 (* PS7 TODO:  interference graph construction *)
 
@@ -22,12 +25,32 @@ struct
     (let (vv1, vv2) = if v1 < v2 then (v1, v2) else (v2, v1) in
      if move_related then { nodes = g.nodes; move_edges = (vv1, vv2) :: g.move_edges; non_move_edges = g.non_move_edges }
      else { nodes = g.nodes; move_edges = g.move_edges; non_move_edges = (vv1, vv2) :: g.non_move_edges })
+
+  let rec count_node_in_edges edges node =
+    match edges with
+    | [] -> 0
+    | (a, b)::tl -> if (a = node) || (b = node) then (count_node_in_edges tl node) + 1
+                    else (count_node_in_edges tl node)
+
+  let get_nonmove_degree g v1 =
+    if (node_mem g v1) then count_node_in_edges g.non_move_edges v1
+    else 0
+
+  let get_move_degree g v1 =
+    if (node_mem g v1) then count_node_in_edges g.move_edges v1
+    else 0
+
 end
 
 module OperandSet = Set.Make(struct
                                type t = operand
                                let compare = compare
                              end)
+
+module MoveSet = Set.Make(struct
+                              type t = operand * operand
+                              let compare = compare
+                            end)
 
 (* Gen for instructions. Returns operand set containing all Gens required for
  * one instruction *)
@@ -240,6 +263,33 @@ let str_of_interfere_graph (g : interfere_graph) : string =
    function that doesn't use any variables (except for function
    names.)
 *)
+
+let initial = ref OperandSet.empty
+let simplifyWorklist = ref OperandSet.empty
+let freezeWorklist = ref OperandSet.empty
+let spillWorklist = ref OperandSet.empty
+let spilledNodes = ref OperandSet.empty
+let coalescedNodes = ref OperandSet.empty
+let coloredNodes = ref OperandSet.empty
+let selectStack : operand list ref = ref []
+
+let coalescedMoves = ref MoveSet.empty
+let constrainedMoves = ref MoveSet.empty
+let frozenMoves = ref MoveSet.empty
+let worklistMoves = ref MoveSet.empty
+let activeMoves = ref MoveSet.empty
+
+let make_worklist graph =
+  let init_nodes = OperandSet.elements !initial in
+  match init_nodes with
+  | [] -> ()
+  | hd::tl -> 
+      initial := OperandSet.remove hd !initial;
+      let hd_deg = InterfereGraph.get_nonmove_degree graph hd in
+      if hd_deg >= k_reg then spillWorklist := OperandSet.add hd !spillWorklist
+      else if (InterfereGraph.get_move_degree graph hd) > 0 then freezeWorklist := OperandSet.add hd !freezeWorklist
+      else simplifyWorklist := OperandSet.add hd !simplifyWorklist
+
 let reg_alloc (f : func) : func = 
     raise Implement_Me
 
