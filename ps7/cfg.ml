@@ -226,8 +226,30 @@ let build_interfere_graph (f : func) : interfere_graph =
 	(match hd with
 	  Call op -> build_graph (add_clique hd2 (add_caller_saves_interfere hd2 g)) tl tl2
 	| _ -> build_graph (add_clique hd2 g) tl tl2)) in
+  (* need to handle zero-length live ranges caused by unused variables *)
+  (* suppose we have an instruction i. if i kills a variable x and x is not in i's live-out set and i doesn't gen x, then add
+     edges from x to everything in i's live-out set *)
+  let rec add_edges_for_dead_code instructions live_in live_out g : interfere_graph =
+    (* add edges from item to each of items *)
+    let rec add_rest_edges item items graph : interfere_graph =
+      (match items with
+	[] -> graph
+      | hd::tl -> add_rest_edges item tl (InterfereGraph.add_edge graph item hd false)) in
+    let rec add_edges_dead_helper x inset outset genset graph : interfere_graph =
+      if (OperandSet.mem x outset = false) && (OperandSet.mem x genset = false) then add_rest_edges x (OperandSet.elements outset) graph else graph in
+    match instructions, live_in, live_out with
+      [], _, _ | _, [], _ | _, _, [] -> g
+    | hd::tl, hd2::tl2, hd3::tl3 ->
+      (let killlist = OperandSet.elements (inst_kill hd) in
+       let genset = inst_gen hd in
+       let rec add_edges_dead_helper_2 kl graph =
+	 (match kl with
+	   [] -> graph
+	 | x::rest -> add_edges_dead_helper_2 rest (add_edges_dead_helper x hd2 hd3 genset graph)) in
+       add_edges_for_dead_code tl tl2 tl3 (add_edges_dead_helper_2 killlist g))
+  in
   (* the graph now has all interference (non-move-related) edges *)
-  let graph_without_move_edges = build_graph igraph insts final_live_in in
+  let graph_without_move_edges = add_edges_for_dead_code insts final_live_in final_live_out (build_graph igraph insts final_live_in) in
   let rec add_move_edges instructions g : interfere_graph =
     match instructions with
       [] -> g
@@ -306,17 +328,6 @@ let cfg_to_mips (f : func ) : Mips.inst list =
     Please make sure to document any changes you make.
 *)
 
-(*let our_func = 
-  [Label("lab");
-  Move(Var("c"),Int(10));
-  Move(Var("a"),Int(0));
-  Move(Var("N"),Int(12));
-  Arith(Var("b"),Var("a"),Plus,Int(1));
-  Arith(Var("c"),Var("c"),Plus,Var("b"));
-  Arith(Var("a"),Var("b"),Times,Int(2));
-  If(Var("a"),Lt,Var("N"), "lab", "lab2");
-  Label("lab2");
-  Return;]*)
 
 let parse_file() =
   let argv = Sys.argv in
