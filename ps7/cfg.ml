@@ -363,13 +363,10 @@ let reg_alloc (f : func) : func =
   let coalesce () = raise Implement_Me in
   let freeze () = raise Implement_Me in
   let select_spill () = raise Implement_Me in
-
-(*   let enable_moves nodelist  *)
-
+  let assign_colors () = raise Implement_Me in
   let rec main_loop (fn : func) : func =
     let graph = build_interfere_graph fn in
     worklistMoves := list_to_moveset graph.InterfereGraph.move_edges;
-    (* TODO: initialize moveList[n] *)
     let _ = make_worklist graph in
     let rec inner_loop () =
       let _ = if OperandSet.is_empty !simplifyWorklist = false then simplify ()
@@ -381,7 +378,9 @@ let reg_alloc (f : func) : func =
 	       (MoveSet.is_empty !worklistMoves) &&
 	       (OperandSet.is_empty !freezeWorklist) &&
 	       (OperandSet.is_empty !spillWorklist)) = false) then inner_loop ())
-    in raise Implement_Me
+    in
+    assign_colors ();
+    raise Implement_Me
   in
   raise Implement_Me
 
