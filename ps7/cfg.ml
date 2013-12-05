@@ -289,8 +289,8 @@ let rec get_edge_set edges node : OperandSet.t =
   match edges with
   | [] -> OperandSet.empty
   | (a,b)::tl -> 
-      if (a = node) then OperandSet.add a (get_edge_set tl node)
-      else if (b = node) then OperandSet.add b (get_edge_set tl node)
+      if (a = node) then OperandSet.add b (get_edge_set tl node)
+      else if (b = node) then OperandSet.add a (get_edge_set tl node)
       else get_edge_set tl node
 
 (* adjList[n] should return set of nodes that interfere with n *)
@@ -355,8 +355,30 @@ let reg_alloc (f : func) : func =
       else if (InterfereGraph.get_move_degree graph hd) > 0 then freezeWorklist := OperandSet.add hd !freezeWorklist
       else simplifyWorklist := OperandSet.add hd !simplifyWorklist)
   in
+  let simplify () = raise Implement_Me in
+  let coalesce () = raise Implement_Me in
+  let freeze () = raise Implement_Me in
+  let select_spill () = raise Implement_Me in
+
 (*   let enable_moves nodelist  *)
 
+  let rec main_loop (fn : func) : func =
+    let graph = build_interfere_graph fn in
+    worklistMoves := graph.InterfereGraph.move_edges;
+    let _ = make_worklist graph in
+    let rec inner_loop () =
+      let _ = if OperandSet.is_empty !simplifyWorklist then simplify ()
+            else if OperandSet.is_empty !worklistMoves then coalesce ()
+            else if OperandSet.is_empty !freezeWorklist then freeze ()
+            else if OperandSet.is_empty !spillWorklist then select_spill ()
+      in
+      let _ = (if (((OperandSet.is_empty !simplifyWorklist) && 
+           (OperandSet.is_empty !worklistMoves) &&
+           (OperandSet.is_empty !freezeWorklist) &&
+           (OperandSet.is_empty !spillWorklist)) = false) then inner_loop ()
+      )
+    in raise Implement_Me
+  in
   raise Implement_Me
 
 (* Finally, translate the output of reg_alloc to Mips instructions *)
