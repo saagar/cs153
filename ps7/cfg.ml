@@ -319,20 +319,16 @@ let rec list_to_moveset list_to_convert : MoveSet.t =
     | [] -> MoveSet.empty
     | hd::tl -> MoveSet.add hd (list_to_moveset tl)
 
-let is_machine_register oper =
-  match oper with
-  | Reg Mips.R0 -> true
-  | Reg Mips.R1 -> true
-  | Reg Mips.R26 -> true
-  | Reg Mips.R27 -> true
-  | Reg Mips.R31 -> true
-  | _ -> false
-
 let reg_alloc (f : func) : func =
-  (* Number of registers *)
+  (* copy of f that we modify over iterations *)
+  let current_func = ref f in
+
   (* ignore 0, 1, 26, 27 - kernel
    * ignore 29, 30, 31 - sp, fp, ra *)
-  let k_reg = 25 in
+  let machine_regs : operand list = [Reg Mips.R0; Reg Mips.R1; Reg Mips.R26; Reg Mips.R27; Reg Mips.R29; Reg Mips.R30; Reg Mips.R31] in
+  (* Number of registers, used to distinguish low- from high-degree nodes *)
+  let k_reg = 32 - List.length machine_regs in
+  let is_machine_register oper = List.mem oper machine_regs in
 
   let precolored = ref OperandSet.empty in
   let initial = ref OperandSet.empty in
@@ -382,10 +378,10 @@ let reg_alloc (f : func) : func =
   let freeze () = raise Implement_Me in
   let select_spill () = raise Implement_Me in
   let assign_colors () = raise Implement_Me in
-  let rewrite_program () : func = raise Implement_Me in
+  let rewrite_program () = raise Implement_Me in
 
-  let rec main_loop (fn : func) : func =
-    let graph = build_interfere_graph fn in
+  let rec main_loop () =
+    let graph = build_interfere_graph !current_func in
     worklistMoves := list_to_moveset graph.InterfereGraph.move_edges;
     setup_initial graph;
     let _ = make_worklist graph in
@@ -401,10 +397,8 @@ let reg_alloc (f : func) : func =
 	       (OperandSet.is_empty !spillWorklist)) = false) then inner_loop ())
     in
     assign_colors ();
-    if OperandSet.is_empty !spilledNodes = false then (let new_fn = rewrite_program () in main_loop new_fn) 
-    else fn;
-    (* TODO: need to use a func ref or something here *)
-    fn
+    if OperandSet.is_empty !spilledNodes = false then (rewrite_program (); main_loop ());
+    ()
   in
 
   raise Implement_Me
