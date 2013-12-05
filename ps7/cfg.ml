@@ -355,9 +355,10 @@ let result2string (res:Mips.inst list) : string =
 *)
 
 let usage_string = "usage: " ^ Sys.argv.(0) ^ " [option] [file-to-parse]\nfor option, choose exactly one of:" ^
-  " -pig -pm\n" ^
+  " -pig -pm -pcfg\n" ^
   "-pig => print interference graph\n" ^
-  "-pm => print compiled MIPS\n"
+  "-pm => print compiled MIPS\n" ^
+  "-pcfg => print control flow graph representation\n"
 
 let parse_file() =
   let argv = Sys.argv in
@@ -376,8 +377,12 @@ let print_interference_graph (():unit) (f : C.func) : unit =
   let graph = build_interfere_graph (fn2blocks f) in
   Printf.printf "%s\n%s\n\n" (C.fn2string f) (str_of_interfere_graph graph)
 
+let print_cfg () (f:C.func) : unit =
+  Printf.printf "%s\n%s\n\n" (C.fn2string f) (fun2string (fn2blocks f))
+
 let _ =
   let cish_prog, option = parse_file() in
   if option = "-pig" then List.fold_left print_interference_graph () cish_prog
   else if option = "-pm" then print_string (result2string (compile_prog cish_prog))
+  else if option = "-pcfg" then List.fold_left print_cfg () cish_prog
   else (prerr_string usage_string; exit 1)
