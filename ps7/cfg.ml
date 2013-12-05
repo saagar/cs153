@@ -314,6 +314,10 @@ let rec list_to_operandset list_to_convert : OperandSet.t =
     | [] -> OperandSet.empty
     | hd::tl -> OperandSet.add hd (list_to_operandset tl)
 
+let rec list_to_moveset list_to_convert : MoveSet.t =
+    match list_to_convert with
+    | [] -> MoveSet.empty
+    | hd::tl -> MoveSet.add hd (list_to_moveset tl)
 
 let reg_alloc (f : func) : func =
   (* Number of registers *)
@@ -364,19 +368,19 @@ let reg_alloc (f : func) : func =
 
   let rec main_loop (fn : func) : func =
     let graph = build_interfere_graph fn in
-    worklistMoves := graph.InterfereGraph.move_edges;
+    worklistMoves := list_to_moveset graph.InterfereGraph.move_edges;
+    (* TODO: initialize moveList[n] *)
     let _ = make_worklist graph in
     let rec inner_loop () =
-      let _ = if OperandSet.is_empty !simplifyWorklist then simplify ()
-            else if OperandSet.is_empty !worklistMoves then coalesce ()
-            else if OperandSet.is_empty !freezeWorklist then freeze ()
-            else if OperandSet.is_empty !spillWorklist then select_spill ()
+      let _ = if OperandSet.is_empty !simplifyWorklist = false then simplify ()
+        else if MoveSet.is_empty !worklistMoves = false then coalesce ()
+        else if OperandSet.is_empty !freezeWorklist = false then freeze ()
+        else if OperandSet.is_empty !spillWorklist = false then select_spill ()
       in
-      let _ = (if (((OperandSet.is_empty !simplifyWorklist) && 
-           (OperandSet.is_empty !worklistMoves) &&
-           (OperandSet.is_empty !freezeWorklist) &&
-           (OperandSet.is_empty !spillWorklist)) = false) then inner_loop ()
-      )
+      (if (((OperandSet.is_empty !simplifyWorklist) && 
+	       (MoveSet.is_empty !worklistMoves) &&
+	       (OperandSet.is_empty !freezeWorklist) &&
+	       (OperandSet.is_empty !spillWorklist)) = false) then inner_loop ())
     in raise Implement_Me
   in
   raise Implement_Me
