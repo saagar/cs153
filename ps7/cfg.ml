@@ -37,6 +37,7 @@ struct
     if (node_mem g v1) then count_node_in_edges g.move_edges v1
     else 0
 
+
 end
 
 module OperandSet = Set.Make(struct
@@ -304,6 +305,19 @@ let reg_alloc (f : func) : func =
   let worklistMoves = ref MoveSet.empty in
   let activeMoves = ref MoveSet.empty in
 
+  (* adjList[n] should return set of nodes that interfere with n *)
+  let get_adj_nodes graph node : OperandSet.t =
+    let nonmove_edges = graph.InterfereGraph.non_move_edges in
+    let rec find_edges edges n node_set : OperandSet.t =
+      (match edges with
+      | [] -> node_set
+      | (a,b)::tl -> 
+          if (a = n) then find_edges tl n (OperandSet.add a node_set)
+          else if (b = n) then find_edges tl n (OperandSet.add b node_set)
+          else find_edges tl n node_set)
+    in
+    find_edges nonmove_edges node OperandSet.empty
+  in
   let make_worklist graph =
     let init_nodes = OperandSet.elements !initial in
     (match init_nodes with
