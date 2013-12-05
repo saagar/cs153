@@ -319,6 +319,15 @@ let rec list_to_moveset list_to_convert : MoveSet.t =
     | [] -> MoveSet.empty
     | hd::tl -> MoveSet.add hd (list_to_moveset tl)
 
+let is_machine_register oper =
+  match oper with
+  | Reg Mips.R0 -> true
+  | Reg Mips.R1 -> true
+  | Reg Mips.R26 -> true
+  | Reg Mips.R27 -> true
+  | Reg Mips.R31 -> true
+  | _ -> false
+
 let reg_alloc (f : func) : func =
   (* Number of registers *)
   (* ignore 0, 1, 26, 27 - kernel
@@ -348,6 +357,16 @@ let reg_alloc (f : func) : func =
     let onion = OperandSet.union selectStackSet !coalescedNodes in
     OperandSet.diff adjList_n onion
   in
+  let setup_initial graph = 
+    let allnodes = graph.InterfereGraph.nodes in
+    let rec filter_nodes nodelist =
+      match nodelist with
+      | [] -> ()
+      | hd::tl -> if is_machine_register hd then precolored := OperandSet.add hd !precolored
+                  else initial := OperandSet.add hd !initial; filter_nodes tl;
+    in 
+    let _ = filter_nodes allnodes
+  in
   let make_worklist graph =
     let init_nodes = OperandSet.elements !initial in
     (match init_nodes with
@@ -364,9 +383,12 @@ let reg_alloc (f : func) : func =
   let freeze () = raise Implement_Me in
   let select_spill () = raise Implement_Me in
   let assign_colors () = raise Implement_Me in
+  let rewrite_program () : func = raise Implement_Me in
+
   let rec main_loop (fn : func) : func =
     let graph = build_interfere_graph fn in
     worklistMoves := list_to_moveset graph.InterfereGraph.move_edges;
+    setup_initial graph;
     let _ = make_worklist graph in
     let rec inner_loop () =
       let _ = if OperandSet.is_empty !simplifyWorklist = false then simplify ()
@@ -380,8 +402,12 @@ let reg_alloc (f : func) : func =
 	       (OperandSet.is_empty !spillWorklist)) = false) then inner_loop ())
     in
     assign_colors ();
-    raise Implement_Me
+    if OperandSet.is_empty !spilledNodes = false then (let new_fn = rewrite_program () in main_loop new_fn) 
+    else fn;
+    (* TODO: need to use a func ref or something here *)
+    fn
   in
+
   raise Implement_Me
 
 (* Finally, translate the output of reg_alloc to Mips instructions *)
