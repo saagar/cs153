@@ -283,37 +283,39 @@ let str_of_interfere_graph (g : interfere_graph) : string =
    names.)
 *)
 
-(* Number of registers *)
-let k_reg = 5
 
-let initial = ref OperandSet.empty
-let simplifyWorklist = ref OperandSet.empty
-let freezeWorklist = ref OperandSet.empty
-let spillWorklist = ref OperandSet.empty
-let spilledNodes = ref OperandSet.empty
-let coalescedNodes = ref OperandSet.empty
-let coloredNodes = ref OperandSet.empty
-let selectStack : operand list ref = ref []
+let reg_alloc (f : func) : func =
+  (* Number of registers *)
+  let k_reg = 5 in
 
-let coalescedMoves = ref MoveSet.empty
-let constrainedMoves = ref MoveSet.empty
-let frozenMoves = ref MoveSet.empty
-let worklistMoves = ref MoveSet.empty
-let activeMoves = ref MoveSet.empty
+  let precolored = ref OperandSet.empty in
+  let initial = ref OperandSet.empty in
+  let simplifyWorklist = ref OperandSet.empty in
+  let freezeWorklist = ref OperandSet.empty in
+  let spillWorklist = ref OperandSet.empty in
+  let spilledNodes = ref OperandSet.empty in
+  let coalescedNodes = ref OperandSet.empty in
+  let coloredNodes = ref OperandSet.empty in
+  let selectStack : operand list ref = ref [] in
 
-let make_worklist graph =
-  let init_nodes = OperandSet.elements !initial in
-  match init_nodes with
-  | [] -> ()
-  | hd::tl -> 
+  let coalescedMoves = ref MoveSet.empty in
+  let constrainedMoves = ref MoveSet.empty in
+  let frozenMoves = ref MoveSet.empty in
+  let worklistMoves = ref MoveSet.empty in
+  let activeMoves = ref MoveSet.empty in
+
+  let make_worklist graph =
+    let init_nodes = OperandSet.elements !initial in
+    (match init_nodes with
+    | [] -> ()
+    | hd::tl -> 
       initial := OperandSet.remove hd !initial;
       let hd_deg = InterfereGraph.get_nonmove_degree graph hd in
       if hd_deg >= k_reg then spillWorklist := OperandSet.add hd !spillWorklist
       else if (InterfereGraph.get_move_degree graph hd) > 0 then freezeWorklist := OperandSet.add hd !freezeWorklist
-      else simplifyWorklist := OperandSet.add hd !simplifyWorklist
-
-let reg_alloc (f : func) : func = 
-    raise Implement_Me
+      else simplifyWorklist := OperandSet.add hd !simplifyWorklist)
+  in
+  raise Implement_Me
 
 (* Finally, translate the ouptut of reg_alloc to Mips instructions *)
 let cfg_to_mips (f : func ) : Mips.inst list = 
