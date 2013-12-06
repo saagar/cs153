@@ -434,12 +434,12 @@ let reg_alloc (f : func) : func =
     let rec dec_deg_for_node n nodelist : (operand * int) list =
       match nodelist with
       | [] -> []
-      | (hd,count)::tl -> if hd = n then (hd,count-1)::(dec_deg_for_node n tl) else (hd,count)::(dec_deg_for_node n tl)
+      | (hd,count)::tl -> if hd = n then (hd,count-1)::tl else (hd,count)::(dec_deg_for_node n tl)
     in
     (* save the decremented degree... slow but ok *)
     let new_degree_list = dec_deg_for_node node deref_degree in
     degree := new_degree_list;
-    if m_deg = k_reg then () (* TODO: this part needs doing! *) else ()
+    if m_deg = k_reg then raise Implement_Me (* TODO: this part needs doing! *) else ()
   in
   let simplify () = 
     let node = OperandSet.choose !simplifyWorklist in 
@@ -498,12 +498,13 @@ let reg_alloc (f : func) : func =
 	       (OperandSet.is_empty !freezeWorklist) &&
 	       (OperandSet.is_empty !spillWorklist)) = false) then inner_loop ())
     in
+    inner_loop ();
     assign_colors ();
     if OperandSet.is_empty !spilledNodes = false then (rewrite_program (); main_loop ());
     ()
   in
-
-  raise Implement_Me
+  main_loop ();
+  !current_func
 
 (* Finally, translate the output of reg_alloc to Mips instructions *)
 let cfg_to_mips (f : func) : Mips.inst list = 
