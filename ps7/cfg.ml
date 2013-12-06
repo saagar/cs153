@@ -44,8 +44,8 @@ module OperandSet = Set.Make(struct
                                type t = operand
                                let compare = compare
                              end)
-
-module MoveSet = Set.Make(struct
+(* This is a tuple, which can be used to represent a MOVE or just an edge in the graph *)
+module TupleSet = Set.Make(struct
                               type t = operand * operand
                               let compare = compare
                             end)
@@ -298,13 +298,13 @@ let get_adj_nodes graph node : OperandSet.t =
   get_edge_set graph.InterfereGraph.non_move_edges node
  
 (* moveList[n] should return set of moves *)
-let get_node_moves graph node : MoveSet.t =
+let get_node_moves graph node : TupleSet.t =
   let move_related_edges = graph.InterfereGraph.move_edges in
-  let rec get_moves_set mr_edges node : MoveSet.t =
+  let rec get_moves_set mr_edges node : TupleSet.t =
     match mr_edges with
-    | [] -> MoveSet.empty
+    | [] -> TupleSet.empty
     | (a,b)::tl ->
-        if (a = node) || (b = node) then MoveSet.add (a, b) (get_moves_set tl node)
+        if (a = node) || (b = node) then TupleSet.add (a, b) (get_moves_set tl node)
         else get_moves_set tl node
   in
   get_moves_set move_related_edges node 
@@ -314,10 +314,23 @@ let rec list_to_operandset list_to_convert : OperandSet.t =
     | [] -> OperandSet.empty
     | hd::tl -> OperandSet.add hd (list_to_operandset tl)
 
-let rec list_to_moveset list_to_convert : MoveSet.t =
+let rec list_to_moveset list_to_convert : TupleSet.t =
     match list_to_convert with
-    | [] -> MoveSet.empty
-    | hd::tl -> MoveSet.add hd (list_to_moveset tl)
+    | [] -> TupleSet.empty
+    | hd::tl -> TupleSet.add hd (list_to_moveset tl)
+
+(* push node into list as if stack *)
+let list_push (ref_list : operand list ref) node =
+  let deref_list = !ref_list in
+  let new_list = node::deref_list in
+  ref_list := deref_list
+
+(* pop top item from list, or return none *)
+let list_pop (ref_list : operand list ref) node : operand option =
+  let deref_list = !ref_list in
+  match deref_list with
+  | [] -> None
+  | hd::tl -> ref_list := tl; Some hd
 
 let reg_alloc (f : func) : func =
   (* copy of f that we modify over iterations *)
@@ -325,7 +338,8 @@ let reg_alloc (f : func) : func =
 
   (* ignore 0, 1, 26, 27 - kernel
    * ignore 29, 30, 31 - sp, fp, ra *)
-  let machine_regs : operand list = [Reg Mips.R0; Reg Mips.R1; Reg Mips.R26; Reg Mips.R27; Reg Mips.R29; Reg Mips.R30; Reg Mips.R31] in
+  let machine_regs : operand list = [Reg Mips.R0; Reg Mips.R1; Reg Mips.R26; 
+                                    Reg Mips.R27; Reg Mips.R29; Reg Mips.R30; Reg Mips.R31] in
   (* Number of registers, used to distinguish low- from high-degree nodes *)
   let k_reg = 32 - List.length machine_regs in
   let is_machine_register oper = List.mem oper machine_regs in
@@ -340,18 +354,51 @@ let reg_alloc (f : func) : func =
   let coloredNodes = ref OperandSet.empty in
   let selectStack : operand list ref = ref [] in
 
-  let coalescedMoves = ref MoveSet.empty in
-  let constrainedMoves = ref MoveSet.empty in
-  let frozenMoves = ref MoveSet.empty in
-  let worklistMoves = ref MoveSet.empty in
-  let activeMoves = ref MoveSet.empty in
+  let coalescedMoves = ref TupleSet.empty in
+  let constrainedMoves = ref TupleSet.empty in
+  let frozenMoves = ref TupleSet.empty in
+  let worklistMoves = ref TupleSet.empty in
+  let activeMoves = ref TupleSet.empty in
 
-  (* Adjacent(n) should return adjList[n] - selectStack - coalescedNodes *)
-  let adjacent graph node : OperandSet.t =
-    let adjList_n = get_adj_nodes graph node in
+  (* list of all interfere edges *)
+  let adjSet = ref TupleSet.empty in
+  let adjList : (operand * OperandSet.t) list ref = ref [] in
+  let degree : (operand * int) list ref = ref [] in
+  let moveList : (operand * TupleSet.t) list ref = ref [] in
+
+  (* Adjacent(n): should return adjList[n] - selectStack - coalescedNodes *)
+  let adjacent node : OperandSet.t =
+    (*let adjList_n = get_adj_nodes graph node in
     let selectStackSet = list_to_operandset !selectStack in    
     let onion = OperandSet.union selectStackSet !coalescedNodes in
-    OperandSet.diff adjList_n onion
+    OperandSet.diff adjList_n onion*)
+    let deref_adjList = !adjList in
+    let rec get_nth_list node deref_list : OperandSet.t =
+      match deref_list with
+      | [] -> raise FatalError
+      | (op,set)::tl -> if op = node then set else get_nth_list node tl
+    in
+    let selectStackSet = list_to_operandset !selectStack in
+    let onion = OperandSet.union selectStackSet !coalescedNodes in
+    let adjList_n_set = get_nth_list node deref_adjList in
+    OperandSet.diff adjList_n_set onion
+  in
+  (* NodeMoves(n): get moveList[n] intersect with union of activeMoves and worklistMoves *)
+  let node_moves node : TupleSet.t =
+    let rec get_nth_list node deref_list : TupleSet.t =
+      match deref_list with
+      | [] -> raise FatalError
+      | (op,tupset)::tl -> if op = node then tupset else get_nth_list node tl
+    in
+    let deref_movelist = !moveList in
+    let move_nth_list = get_nth_list node deref_movelist in
+    let onion = TupleSet.union !activeMoves !worklistMoves in
+    TupleSet.inter move_nth_list onion
+  in
+  (* MoveRelated(n) *)
+  let move_related node : bool =
+    let tupset = node_moves node in
+    if TupleSet.is_empty tupset then false else true
   in
   let setup_initial graph = 
     let allnodes = graph.InterfereGraph.nodes in
@@ -373,7 +420,49 @@ let reg_alloc (f : func) : func =
       else if (InterfereGraph.get_move_degree graph hd) > 0 then freezeWorklist := OperandSet.add hd !freezeWorklist
       else simplifyWorklist := OperandSet.add hd !simplifyWorklist)
   in
-  let simplify () = raise Implement_Me in
+  (* DecrementDegree(m) *)
+  let decrement_degree node =
+    let deref_degree = !degree in
+    (* get the degree *)
+    let rec get_degree n nodelist : int =
+      match nodelist with
+      | [] -> raise FatalError
+      | (hd,count)::tl -> if hd = n then count else get_degree n tl
+    in
+    let m_deg = get_degree node deref_degree in
+    (* make a new list with updated degree *)
+    let rec dec_deg_for_node n nodelist : (operand * int) list =
+      match nodelist with
+      | [] -> []
+      | (hd,count)::tl -> if hd = n then (hd,count-1)::(dec_deg_for_node n tl) else (hd,count)::(dec_deg_for_node n tl)
+    in
+    (* save the decremented degree... slow but ok *)
+    let new_degree_list = dec_deg_for_node node deref_degree in
+    degree := new_degree_list;
+    if m_deg = k_reg then () (* TODO: this part needs doing! *) else ()
+  in
+  let simplify () = 
+    let node = OperandSet.choose !simplifyWorklist in 
+    (* remove node from the worklist *)
+    simplifyWorklist := OperandSet.remove node !simplifyWorklist;
+    (* push the node into selectStack *)
+    let _ = list_push selectStack node in
+    let neighbors = adjacent node in
+    (* get neighbor nodes decremented *)
+    let rec dec_degree_loop nodelist =
+      match nodelist with
+      | [] -> ()
+      | hd::tl -> let _ = decrement_degree hd in dec_degree_loop tl
+    in
+    (*let neighbors = adjacent graph node in
+    let rec simplify_helper nodelist old_graph : InterfereGraph.t =
+      match nodelist with
+      | [] -> old_graph
+      | hd::tl -> simplify_helper tl (decrement_degree graph hd)
+    in*)
+
+    ()
+  in
   let coalesce () = raise Implement_Me in
   let freeze () = raise Implement_Me in
   let select_spill () = raise Implement_Me in
@@ -387,12 +476,12 @@ let reg_alloc (f : func) : func =
     let _ = make_worklist graph in
     let rec inner_loop () =
       let _ = if OperandSet.is_empty !simplifyWorklist = false then simplify ()
-        else if MoveSet.is_empty !worklistMoves = false then coalesce ()
+        else if TupleSet.is_empty !worklistMoves = false then coalesce ()
         else if OperandSet.is_empty !freezeWorklist = false then freeze ()
         else if OperandSet.is_empty !spillWorklist = false then select_spill ()
       in
       (if (((OperandSet.is_empty !simplifyWorklist) && 
-	       (MoveSet.is_empty !worklistMoves) &&
+	       (TupleSet.is_empty !worklistMoves) &&
 	       (OperandSet.is_empty !freezeWorklist) &&
 	       (OperandSet.is_empty !spillWorklist)) = false) then inner_loop ())
     in
