@@ -420,8 +420,30 @@ let reg_alloc (f : func) : func =
        else simplifyWorklist := OperandSet.add hd !simplifyWorklist);
       make_worklist graph)
   in
+  (* EnableMoves(n) *)
+  let enable_moves (nodes : OperandSet.t) =
+    let inner_iterator single_node =
+      (* inner loop updater *)
+      let rec update_moves tuplist =
+        match tuplist with
+        | [] -> ()
+        | hd::tl -> (if TupleSet.exists (fun x -> x = hd) !activeMoves 
+                    then activeMoves := TupleSet.remove hd !activeMoves;
+                        worklistMoves := TupleSet.add hd !worklistMoves);
+                    update_moves tl
+      in
+      update_moves (TupleSet.elements (node_moves single_node))
+    in
+    (* outer loop *)
+    let rec nodes_iterator nodelist =
+      match nodelist with
+      | [] -> ()
+      | hd::tl -> inner_iterator hd; nodes_iterator tl;
+    in
+    nodes_iterator (OperandSet.elements nodes)
+  in
   (* DecrementDegree(m) *)
-  let decrement_degree node =
+  let decrement_degree (node : operand) =
     let deref_degree = !degree in
     (* get the degree *)
     let rec get_degree n nodelist : int =
@@ -439,7 +461,14 @@ let reg_alloc (f : func) : func =
     (* save the decremented degree... slow but ok *)
     let new_degree_list = dec_deg_for_node node deref_degree in
     degree := new_degree_list;
-    if m_deg = k_reg then raise Implement_Me (* TODO: this part needs doing! *) else ()
+    if m_deg = k_reg 
+    then 
+      let abunchofnodes = OperandSet.add node (adjacent node) in 
+      enable_moves abunchofnodes;
+      spillWorklist := OperandSet.remove node !spillWorklist;
+      if (move_related node) then freezeWorklist := OperandSet.add node !freezeWorklist
+      else simplifyWorklist := OperandSet.add node !simplifyWorklist;
+    else ()
   in
   let simplify () = 
     let node = OperandSet.choose !simplifyWorklist in 
