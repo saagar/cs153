@@ -297,7 +297,7 @@ let rec get_edge_set edges node : OperandSet.t =
 let get_adj_nodes graph node : OperandSet.t =
   get_edge_set graph.InterfereGraph.non_move_edges node
  
-(* moveList[n] should return set of moves *)
+(* moveList[n] should return set of moves involving n as a source or destination *)
 let get_node_moves graph node : TupleSet.t =
   let move_related_edges = graph.InterfereGraph.move_edges in
   let rec get_moves_set mr_edges node : TupleSet.t =
@@ -405,20 +405,20 @@ let reg_alloc (f : func) : func =
     let rec filter_nodes nodelist =
       match nodelist with
       | [] -> ()
-      | hd::tl -> if is_machine_register hd then precolored := OperandSet.add hd !precolored
-        else initial := OperandSet.add hd !initial; filter_nodes tl;
+      | hd::tl -> (if is_machine_register hd then precolored := OperandSet.add hd !precolored
+        else initial := OperandSet.add hd !initial); filter_nodes tl;
     in 
     filter_nodes allnodes in
-  let make_worklist graph =
-    let init_nodes = OperandSet.elements !initial in
-    (match init_nodes with
-    | [] -> ()
-    | hd::tl -> 
-      initial := OperandSet.remove hd !initial;
-      let hd_deg = InterfereGraph.get_nonmove_degree graph hd in
-      if hd_deg >= k_reg then spillWorklist := OperandSet.add hd !spillWorklist
-      else if (InterfereGraph.get_move_degree graph hd) > 0 then freezeWorklist := OperandSet.add hd !freezeWorklist
-      else simplifyWorklist := OperandSet.add hd !simplifyWorklist)
+  let rec make_worklist graph =
+    (match (OperandSet.elements !initial) with
+      [] -> ()
+    | hd::tl ->
+      (initial := OperandSet.remove hd !initial;
+       let hd_deg = InterfereGraph.get_nonmove_degree graph hd in
+       if hd_deg >= k_reg then spillWorklist := OperandSet.add hd !spillWorklist
+       else if (InterfereGraph.get_move_degree graph hd) > 0 then freezeWorklist := OperandSet.add hd !freezeWorklist
+       else simplifyWorklist := OperandSet.add hd !simplifyWorklist);
+      make_worklist graph)
   in
   (* DecrementDegree(m) *)
   let decrement_degree node =
@@ -470,10 +470,23 @@ let reg_alloc (f : func) : func =
   let rewrite_program () = raise Implement_Me in
 
   let rec main_loop () =
+    (* Appel procedures LivenessAnalysis and Build *)
     let graph = build_interfere_graph !current_func in
     worklistMoves := list_to_moveset graph.InterfereGraph.move_edges;
+    coalescedMoves := TupleSet.empty;
+    constrainedMoves := TupleSet.empty;
+    frozenMoves := TupleSet.empty;
+    activeMoves := TupleSet.empty;
+    (* setup node worklists *)
     setup_initial graph;
-    let _ = make_worklist graph in
+    simplifyWorklist := OperandSet.empty;
+    freezeWorklist := OperandSet.empty;
+    spillWorklist := OperandSet.empty;
+    spilledNodes := OperandSet.empty;
+    coalescedNodes := OperandSet.empty;
+    coloredNodes := OperandSet.empty;
+    selectStack := [];
+    make_worklist graph;
     let rec inner_loop () =
       let _ = if OperandSet.is_empty !simplifyWorklist = false then simplify ()
         else if TupleSet.is_empty !worklistMoves = false then coalesce ()
