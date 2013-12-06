@@ -463,7 +463,15 @@ let reg_alloc (f : func) : func =
 
     ()
   in
-  let coalesce () = raise Implement_Me in
+  let get_alias node = raise Implement_Me in
+  let coalesce () =
+    let m = TupleSet.choose !worklistMoves in
+    let (x, y) = m in
+    let x_alias = get_alias x in
+    let y_alias = get_alias y in
+    let (u, v) = (if OperandSet.mem y_alias !precolored then (y_alias, x_alias) else (x_alias, y_alias)) in
+    raise Implement_Me
+  in
   let freeze () = raise Implement_Me in
   let select_spill () = raise Implement_Me in
   let assign_colors () = raise Implement_Me in
