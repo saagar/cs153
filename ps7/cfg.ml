@@ -510,6 +510,9 @@ let reg_alloc (f : func) : func =
       freezeWorklist := OperandSet.remove node !freezeWorklist;
       simplifyWorklist := OperandSet.add node !simplifyWorklist;
   in
+  let ok t r = raise Implement_Me in
+  let conservative nodes = raise Implement_Me in
+  let combine u v = raise Implement_Me in
   (* COALESCE *)
   let coalesce () =
     let m = TupleSet.choose !worklistMoves in
@@ -526,8 +529,15 @@ let reg_alloc (f : func) : func =
     then
       (constrainedMoves := TupleSet.add m !constrainedMoves;
        add_worklist u;
-       add_worklist v);
-    raise Implement_Me
+       add_worklist v)
+    else if ((OperandSet.mem u !precolored) && (OperandSet.for_all (fun t -> ok t u) (adjacent v))
+		|| (OperandSet.mem u !precolored = false) && (conservative (OperandSet.union (adjacent u) (adjacent v))))
+    then
+      (coalescedMoves := TupleSet.add m !coalescedMoves;
+       combine u v;
+       add_worklist u)
+    else
+      activeMoves := TupleSet.add m !activeMoves
   in
   let freeze () = raise Implement_Me in
   let select_spill () = raise Implement_Me in
