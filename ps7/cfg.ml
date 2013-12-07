@@ -442,16 +442,25 @@ let reg_alloc (f : func) : func =
     in
     nodes_iterator (OperandSet.elements nodes)
   in
+  (* helper to get degree of a node *)
+  let retrieve_degree node : int =
+    let rec retrieve_helper n nodelist : int =
+      match nodelist with
+      | [] -> raise FatalError
+      | (hd,count)::tl -> if hd = n then count else retrieve_helper n tl
+    in
+    retrieve_helper node !degree
+  in
   (* DecrementDegree(m) *)
   let decrement_degree (node : operand) =
-    let deref_degree = !degree in
-    (* get the degree *)
-    let rec get_degree n nodelist : int =
+    (* SHOULD DELETE - get the degree *)
+(*    let rec get_degree n nodelist : int =
       match nodelist with
       | [] -> raise FatalError
       | (hd,count)::tl -> if hd = n then count else get_degree n tl
-    in
-    let m_deg = get_degree node deref_degree in
+    in*)
+(*     let m_deg = get_degree node deref_degree in *)
+    let m_deg = retrieve_degree node in
     (* make a new list with updated degree *)
     let rec dec_deg_for_node n nodelist : (operand * int) list =
       match nodelist with
@@ -459,7 +468,7 @@ let reg_alloc (f : func) : func =
       | (hd,count)::tl -> if hd = n then (hd,count-1)::tl else (hd,count)::(dec_deg_for_node n tl)
     in
     (* save the decremented degree... slow but ok *)
-    let new_degree_list = dec_deg_for_node node deref_degree in
+    let new_degree_list = dec_deg_for_node node !degree in 
     degree := new_degree_list;
     if m_deg = k_reg 
     then 
@@ -470,6 +479,7 @@ let reg_alloc (f : func) : func =
       else simplifyWorklist := OperandSet.add node !simplifyWorklist;
     else ()
   in
+  (* SIMPLIFY *)
   let simplify () = 
     let node = OperandSet.choose !simplifyWorklist in 
     (* remove node from the worklist *)
@@ -483,22 +493,39 @@ let reg_alloc (f : func) : func =
       | [] -> ()
       | hd::tl -> let _ = decrement_degree hd in dec_degree_loop tl
     in
+    (* OLD CODE - should probably delete *)
     (*let neighbors = adjacent graph node in
     let rec simplify_helper nodelist old_graph : InterfereGraph.t =
       match nodelist with
       | [] -> old_graph
       | hd::tl -> simplify_helper tl (decrement_degree graph hd)
     in*)
-
     ()
   in
+  (* GetAlias(n) *)
   let get_alias node = raise Implement_Me in
+  (* AddWorkList(u) *)
+  let add_worklist node = 
+    if ((OperandSet.for_all (fun x -> node = x) !precolored) = false && (move_related node) = false && (retrieve_degree node) < k_reg) then
+      freezeWorklist := OperandSet.remove node !freezeWorklist;
+      simplifyWorklist := OperandSet.add node !simplifyWorklist;
+  in
+  (* COALESCE *)
   let coalesce () =
     let m = TupleSet.choose !worklistMoves in
     let (x, y) = m in
     let x_alias = get_alias x in
     let y_alias = get_alias y in
     let (u, v) = (if OperandSet.mem y_alias !precolored then (y_alias, x_alias) else (x_alias, y_alias)) in
+    worklistMoves := TupleSet.remove m !worklistMoves;
+    if (u = v)
+    then coalescedMoves := TupleSet.add m !coalescedMoves; (add_worklist u);
+    (* TODO - fix this ocaml block. i don't know why it doesn't compile :( *)
+    (*else if ((OperandSet.exists (fun x -> x = v) precolored) || (TupleSet.exists (fun tup -> tup = (u, v)) adjSet))
+    then
+      constrainedMoves := TupleSet.add (u,v) !constrainedMoves;
+      add_worklist u;
+      add_worklist v;*)
     raise Implement_Me
   in
   let freeze () = raise Implement_Me in
