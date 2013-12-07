@@ -519,13 +519,14 @@ let reg_alloc (f : func) : func =
     let (u, v) = (if OperandSet.mem y_alias !precolored then (y_alias, x_alias) else (x_alias, y_alias)) in
     worklistMoves := TupleSet.remove m !worklistMoves;
     if (u = v)
-    then coalescedMoves := TupleSet.add m !coalescedMoves; (add_worklist u);
+    then (coalescedMoves := TupleSet.add m !coalescedMoves; (add_worklist u))
     (* TODO - fix this ocaml block. i don't know why it doesn't compile :( *)
-    (*else if ((OperandSet.exists (fun x -> x = v) precolored) || (TupleSet.exists (fun tup -> tup = (u, v)) adjSet))
+    (* TODO - need ordering invariant for edges *)
+    else if ((OperandSet.mem v !precolored) || (TupleSet.mem (u, v) !adjSet))
     then
-      constrainedMoves := TupleSet.add (u,v) !constrainedMoves;
-      add_worklist u;
-      add_worklist v;*)
+      (constrainedMoves := TupleSet.add m !constrainedMoves;
+       add_worklist u;
+       add_worklist v);
     raise Implement_Me
   in
   let freeze () = raise Implement_Me in
