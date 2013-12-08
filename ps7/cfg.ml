@@ -505,6 +505,8 @@ let reg_alloc (f : func) : func =
   in
   (* GetAlias(n) *)
   let get_alias node = raise Implement_Me in
+  (* alias[u] = v *)
+  let set_alias u v = raise Implement_Me in
   (* AddWorkList(u) *)
   let add_worklist node = 
     if ((OperandSet.for_all (fun x -> node = x) !precolored) = false && (move_related node) = false && (retrieve_degree node) < k_reg) then
@@ -519,7 +521,15 @@ let reg_alloc (f : func) : func =
     let k = OperandSet.fold (fun x a -> if retrieve_degree x >= k_reg then a + 1 else a) nodes 0 in
     k < k_reg
   in
-  let combine u v = raise Implement_Me in
+  let combine u v =
+   (if OperandSet.mem v !freezeWorklist then
+      freezeWorklist := OperandSet.remove v !freezeWorklist
+    else
+      spillWorklist := OperandSet.remove v !spillWorklist);
+    coalescedNodes := OperandSet.add u !coalescedNodes;
+    set_alias v u;
+    (* NODE MOVES IS GOING TO BETRICKY :( *)
+  in
   (* COALESCE *)
   let coalesce () =
     let m = TupleSet.choose !worklistMoves in
@@ -545,7 +555,26 @@ let reg_alloc (f : func) : func =
     else
       activeMoves := TupleSet.add m !activeMoves
   in
-  let freeze () = raise Implement_Me in
+  let freeze_moves (node : operand) =
+    let m = TupleSet.choose (node_moves node) in
+    activeMoves := TupleSet.remove m !activeMoves;
+    frozenMoves := TupleSet.add m !frozenMoves;
+    let (x, y) = m in
+    let v : operand ref = ref x in
+    (if (get_alias y) = (get_alias node) then
+      v := get_alias x
+    else v := get_alias y);
+    if (TupleSet.is_empty (node_moves !v)) && (retrieve_degree !v < k_reg) then
+      freezeWorklist := OperandSet.remove !v !freezeWorklist;
+      simplifyWorklist := OperandSet.add !v !simplifyWorklist;
+  in
+  (* FREEZE *)
+  let freeze () = 
+    let u = OperandSet.choose !freezeWorklist in
+    freezeWorklist := OperandSet.remove u !freezeWorklist;
+    simplifyWorklist := OperandSet.add u !simplifyWorklist;
+    let _ = freeze_moves u in ()
+  in
   let select_spill () = raise Implement_Me in
   let assign_colors () = raise Implement_Me in
   let rewrite_program () = raise Implement_Me in
