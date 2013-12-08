@@ -514,7 +514,11 @@ let reg_alloc (f : func) : func =
   let ok t r = 
     ((retrieve_degree t) < k_reg) || (OperandSet.mem t !precolored) || (TupleSet.mem (t,r) !adjSet)
   in
-  let conservative nodes = raise Implement_Me in
+  (* briggs strategy *)
+  let conservative nodes =
+    let k = OperandSet.fold (fun x a -> if retrieve_degree x >= k_reg then a + 1 else a) nodes 0 in
+    k < k_reg
+  in
   let combine u v = raise Implement_Me in
   (* COALESCE *)
   let coalesce () =
@@ -526,8 +530,7 @@ let reg_alloc (f : func) : func =
     worklistMoves := TupleSet.remove m !worklistMoves;
     if (u = v)
     then (coalescedMoves := TupleSet.add m !coalescedMoves; (add_worklist u))
-    (* TODO - fix this ocaml block. i don't know why it doesn't compile :( *)
-    (* TODO - need ordering invariant for edges *)
+    (* TODO - need ordering invariant for edges? *)
     else if ((OperandSet.mem v !precolored) || (TupleSet.mem (u, v) !adjSet))
     then
       (constrainedMoves := TupleSet.add m !constrainedMoves;
