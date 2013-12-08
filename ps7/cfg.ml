@@ -503,10 +503,29 @@ let reg_alloc (f : func) : func =
     in*)
     ()
   in
-  (* GetAlias(n) *)
-  let get_alias node = raise Implement_Me in
+  (* access alias[u] *)
+  let retrieve_alias node : operand = 
+    let rec retrieve_helper n aliaslist =
+      match aliaslist with
+      | [] -> raise FatalError (* TODO: is this correct? *)
+      | (a,b)::tl -> if a = n then b else retrieve_helper n tl
+    in
+    retrieve_helper node !alias
+  in
+  (* GetAlias(n) - returns the alias of some node n *)
+  let rec get_alias node : operand = 
+    if OperandSet.mem node !coalescedNodes then (get_alias (retrieve_alias node)) else node;
+  in
   (* alias[u] = v *)
-  let set_alias u v = raise Implement_Me in
+  let set_alias u v =
+    let rec new_alias_list u_node v_rename aliaslist : (operand * operand) list =
+      match aliaslist with
+      | [] -> []
+      | (a,b)::tl -> if a = u_node then (a,v_rename)::tl else (a,b)::(new_alias_list u_node v_rename tl)
+    in
+    let updated_aliases = new_alias_list u v !alias in
+    alias := updated_aliases;
+  in
   (* AddWorkList(u) *)
   let add_worklist node = 
     if ((OperandSet.for_all (fun x -> node = x) !precolored) = false && (move_related node) = false && (retrieve_degree node) < k_reg) then
