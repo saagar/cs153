@@ -340,7 +340,10 @@ let reg_alloc (f : func) : func =
   let adjList : (operand * OperandSet.t) list ref = ref [] in
   let degree : (operand * int) list ref = ref [] in
   let moveList : (operand * TupleSet.t) list ref = ref [] in
+  (* alias[u] = v is a tuple of node u to alias mapping of v after coalescing *)
   let alias : (operand * operand) list ref = ref [] in
+  (* color[n] = c is a tuple of node to register color *)
+  let color : (operand * operand) list ref = ref [] in
 
   (* Adjacent(n): should return adjList[n] - selectStack - coalescedNodes *)
   let adjacent node : OperandSet.t =
@@ -567,7 +570,14 @@ let reg_alloc (f : func) : func =
     let _ = freeze_moves u in ()
   in
   let select_spill () = raise Implement_Me in
-  let assign_colors () = raise Implement_Me in
+  let assign_colors () = 
+    let rec selectstack_loop stacklist =
+      match stacklist with
+      | [] -> ()
+      | hd::tl -> raise Implement_Me
+    in
+    raise Implement_Me
+  in
   let rewrite_program () = raise Implement_Me in
 
   let rec main_loop () =
