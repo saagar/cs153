@@ -293,11 +293,11 @@ let rec get_edge_set edges node : OperandSet.t =
       else if (b = node) then OperandSet.add a (get_edge_set tl node)
       else get_edge_set tl node
 
-(* adjList[n] should return set of nodes that interfere with n *)
+(* DEFUNCT - adjList[n] should return set of nodes that interfere with n *)
 let get_adj_nodes graph node : OperandSet.t =
   get_edge_set graph.InterfereGraph.non_move_edges node
  
-(* moveList[n] should return set of moves involving n as a source or destination *)
+(* DEFUNCT - moveList[n] should return set of moves involving n as a source or destination *)
 let get_node_moves graph node : TupleSet.t =
   let move_related_edges = graph.InterfereGraph.move_edges in
   let rec get_moves_set mr_edges node : TupleSet.t =
@@ -528,7 +528,18 @@ let reg_alloc (f : func) : func =
       spillWorklist := OperandSet.remove v !spillWorklist);
     coalescedNodes := OperandSet.add u !coalescedNodes;
     set_alias v u;
-    (* NODE MOVES IS GOING TO BETRICKY :( *)
+    let u_movelist = node_moves u in
+    let v_movelist = node_moves v in
+    let onion = TupleSet.union u_movelist v_movelist in
+    let deref_movelist = !moveList in
+    let rec update_movelist node movelist new_list : (operand * TupleSet.t) list =
+      match movelist with
+      | [] -> raise FatalError (* we shouldn't get to this point. if we did, nothing matched and something is wrong *)
+      | (hd,tupset)::tl -> if (hd = node) then (hd,new_list)::tl else (hd,tupset)::(update_movelist node tl new_list)
+    in
+    let movelistupdates = update_movelist u deref_movelist onion in
+    moveList := movelistupdates;
+    raise Implement_Me (* TODO - finish!! *)
   in
   (* COALESCE *)
   let coalesce () =
