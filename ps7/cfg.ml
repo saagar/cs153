@@ -284,31 +284,6 @@ let str_of_interfere_graph (g : interfere_graph) : string =
    names.)
 *)
 
-(* helper for adjList[n] *)
-let rec get_edge_set edges node : OperandSet.t =
-  match edges with
-  | [] -> OperandSet.empty
-  | (a,b)::tl -> 
-      if (a = node) then OperandSet.add b (get_edge_set tl node)
-      else if (b = node) then OperandSet.add a (get_edge_set tl node)
-      else get_edge_set tl node
-
-(* DEFUNCT - adjList[n] should return set of nodes that interfere with n *)
-let get_adj_nodes graph node : OperandSet.t =
-  get_edge_set graph.InterfereGraph.non_move_edges node
- 
-(* DEFUNCT - moveList[n] should return set of moves involving n as a source or destination *)
-let get_node_moves graph node : TupleSet.t =
-  let move_related_edges = graph.InterfereGraph.move_edges in
-  let rec get_moves_set mr_edges node : TupleSet.t =
-    match mr_edges with
-    | [] -> TupleSet.empty
-    | (a,b)::tl ->
-        if (a = node) || (b = node) then TupleSet.add (a, b) (get_moves_set tl node)
-        else get_moves_set tl node
-  in
-  get_moves_set move_related_edges node 
-
 let rec list_to_operandset list_to_convert : OperandSet.t =
     match list_to_convert with
     | [] -> OperandSet.empty
@@ -454,13 +429,6 @@ let reg_alloc (f : func) : func =
   in
   (* DecrementDegree(m) *)
   let decrement_degree (node : operand) =
-    (* SHOULD DELETE - get the degree *)
-(*    let rec get_degree n nodelist : int =
-      match nodelist with
-      | [] -> raise FatalError
-      | (hd,count)::tl -> if hd = n then count else get_degree n tl
-    in*)
-(*     let m_deg = get_degree node deref_degree in *)
     let m_deg = retrieve_degree node in
     (* make a new list with updated degree *)
     let rec dec_deg_for_node n nodelist : (operand * int) list =
@@ -494,13 +462,6 @@ let reg_alloc (f : func) : func =
       | [] -> ()
       | hd::tl -> let _ = decrement_degree hd in dec_degree_loop tl
     in
-    (* OLD CODE - should probably delete *)
-    (*let neighbors = adjacent graph node in
-    let rec simplify_helper nodelist old_graph : InterfereGraph.t =
-      match nodelist with
-      | [] -> old_graph
-      | hd::tl -> simplify_helper tl (decrement_degree graph hd)
-    in*)
     ()
   in
   (* access alias[u] *)
