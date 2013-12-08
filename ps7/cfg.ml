@@ -365,6 +365,7 @@ let reg_alloc (f : func) : func =
   let adjList : (operand * OperandSet.t) list ref = ref [] in
   let degree : (operand * int) list ref = ref [] in
   let moveList : (operand * TupleSet.t) list ref = ref [] in
+  let alias : (operand * operand) list ref = ref [] in
 
   (* Adjacent(n): should return adjList[n] - selectStack - coalescedNodes *)
   let adjacent node : OperandSet.t =
@@ -510,7 +511,9 @@ let reg_alloc (f : func) : func =
       freezeWorklist := OperandSet.remove node !freezeWorklist;
       simplifyWorklist := OperandSet.add node !simplifyWorklist;
   in
-  let ok t r = raise Implement_Me in
+  let ok t r = 
+    ((retrieve_degree t) < k_reg) || (OperandSet.mem t !precolored) || (TupleSet.mem (t,r) !adjSet)
+  in
   let conservative nodes = raise Implement_Me in
   let combine u v = raise Implement_Me in
   (* COALESCE *)
