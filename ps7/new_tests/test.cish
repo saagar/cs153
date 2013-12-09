@@ -1,0 +1,7 @@
+main() {
+  let y = 12+4; {
+    let z = y+3; {
+      return z+y;
+    }
+  }
+}
