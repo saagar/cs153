@@ -55,12 +55,15 @@ module TupleSet = Set.Make(struct
 let inst_gen inst : OperandSet.t =
   let opset = OperandSet.empty in
   match inst with
-  | Label _ | Jump _ | Return -> opset
+  | Label _ | Jump _ -> opset
+  (* Return uses $2 *)
+  | Return -> OperandSet.add (Reg Mips.R2) opset
   | Move (o1, o2) -> OperandSet.add o2 opset
   | Arith (o1, o2, _, o3) -> OperandSet.add o2 (OperandSet.add o3 opset)
   | Load (o1, o2, _) -> OperandSet.add o2 opset
   | Store (o1, _, o2) -> OperandSet.add o1 (OperandSet.add o2 opset)
-  | Call op -> OperandSet.add op opset
+  (* Call uses the argument registers according to Lucas *)
+  | Call op -> OperandSet.add op (OperandSet.add (Reg Mips.R4) (OperandSet.add (Reg Mips.R5) (OperandSet.add (Reg Mips.R6) (OperandSet.add (Reg Mips.R7) opset))))
   | If (o1, _, o2, _, _) -> OperandSet.add o1 (OperandSet.add o2 opset)
 
 (* Kill for instructions. Returns operand set containing all Kills required for
