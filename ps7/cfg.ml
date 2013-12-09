@@ -118,15 +118,30 @@ let prune_interfere_graph_nodes (g : interfere_graph) : interfere_graph =
     InterfereGraph.move_edges = g.InterfereGraph.move_edges; 
     InterfereGraph.non_move_edges = g.InterfereGraph.non_move_edges }
 
+let pig_debug = ref false
+
 (* given a function (i.e., list of basic blocks), construct the
  * interference graph for that function.  This will require that
  * you build a dataflow analysis for calculating what set of variables
  * are live-in and live-out for each program point. *)
 let build_interfere_graph (f : func) : interfere_graph =
+  (* debug code *)
+  let rec set2str opset =
+    match OperandSet.elements opset with
+      [] -> ""
+    | hd::tl -> (match hd with Reg _ | Var _ -> op2string hd | _ -> "") ^ " " ^ set2str (OperandSet.remove hd opset) in
+  let rec print_live_in live_in instructions =
+    match (live_in, instructions) with
+      [], _ -> ()
+    | _, [] -> ()
+    | hd::tl, hd2::tl2 -> print_string (inst2string hd2 ^ "     " ^ set2str hd ^ "\n"); print_live_in tl tl2 in
+  (* end debug code *)
+
   (* flatten the blocks into a pure list of instructions. we will do livein and
    * liveout for each instruction *)
   (*print_string (fun2string f);*)
   let insts = List.flatten f in
+  (* all live in sets are Gen(instruction) at start *)
   let rec live_in_init (instructions : inst list) : OperandSet.t list =
     match instructions with
       [] -> []
@@ -135,10 +150,6 @@ let build_interfere_graph (f : func) : interfere_graph =
     match instructions with
       [] -> []
     | hd :: tl -> OperandSet.empty :: live_out_init tl in
-  (* all live in sets are Gen(instruction) at start *)
-  let live_in_full = live_in_init insts in
-  (* all live out sets are empty at start.*)
-  let live_out_full = live_out_init insts in
   let rec find_in live_in instructions lbl =
     match instructions, live_in with
       [], _ | _, [] -> raise FatalError (* failed to find label in the instruction list *)
@@ -146,7 +157,7 @@ let build_interfere_graph (f : func) : interfere_graph =
       (match hd with
 	Label l -> if l = lbl then hd2 else find_in tl2 tl lbl
       | _ -> find_in tl2 tl lbl) in
-  let rec update_lives instructions live_in live_out accum : (OperandSet.t list * OperandSet.t list) =
+  let rec update_lives instructions live_in live_out accum live_in_full: (OperandSet.t list * OperandSet.t list) =
     match instructions with
       [] -> accum
     | hd :: tl ->
@@ -164,16 +175,18 @@ let build_interfere_graph (f : func) : interfere_graph =
 	 [], _ | _, [] -> raise FatalError (* should never happen because live_in, live_out, and instructions should be the same length *)
        | hd2 :: tl2, hd3 :: tl3 ->
 	 (let live_in_rest, live_out_rest = accum in
-	  if OperandSet.equal out hd3 then update_lives tl tl2 tl3 (live_in_rest @ [hd2], live_out_rest @ [hd3])
+	  if OperandSet.equal out hd3 then update_lives tl tl2 tl3 (live_in_rest @ [hd2], live_out_rest @ [hd3]) live_in_full
 	  else (let new_in = OperandSet.union (inst_gen hd) (OperandSet.diff out (inst_kill hd)) in
-		change (update_lives tl tl2 tl3 (live_in_rest @ [new_in], live_out_rest @ [out]))))) in
+		change (update_lives tl tl2 tl3 (live_in_rest @ [new_in], live_out_rest @ [out]) live_in_full)))) in
   let rec loop live_in live_out =
     if (!changed) then
       (let _ = changed := false in
-       let new_live_in, new_live_out = update_lives insts live_in live_out ([], []) in
+       let new_live_in, new_live_out = update_lives insts live_in live_out ([], []) live_in in
        loop new_live_in new_live_out)
     else (live_in, live_out) in
-  let (final_live_in, final_live_out) = changed := true; loop live_in_full live_out_full in
+  (* all live in sets are Gen(instruction) at start *)
+  (* all live out sets are empty at start.*)
+  let (final_live_in, final_live_out) = changed := true; loop (live_in_init insts) (live_out_init insts) in
   (* create an empty graph with all nodes from instructions *)
   let rec graph_init (instructions : inst list) (giraffe : interfere_graph) : interfere_graph =
     match instructions with
@@ -269,6 +282,7 @@ let build_interfere_graph (f : func) : interfere_graph =
       | _ -> add_move_edges tl g)
   in
   let complete_graph = add_move_edges insts graph_without_move_edges in
+  (if !pig_debug then print_live_in final_live_in insts else ());
   complete_graph
 
 (* given an interference graph, generate a string representing it *)
@@ -717,10 +731,11 @@ let result2string (res:Mips.inst list) : string =
 *)
 
 let usage_string = "usage: " ^ Sys.argv.(0) ^ " [option] [file-to-parse]\nfor option, choose exactly one of:" ^
-  " -pig -pm -pcfg\n" ^
+  " -pig -pm -pcfg -pigd\n" ^
   "-pig => print interference graph\n" ^
   "-pm => print compiled MIPS\n" ^
-  "-pcfg => print control flow graph representation\n"
+  "-pcfg => print control flow graph representation\n" ^
+  "-pigd => print interference graph with live-in sets next to instructions as debug info\n"
 
 let parse_file() =
   let argv = Sys.argv in
@@ -747,4 +762,5 @@ let _ =
   if option = "-pig" then List.fold_left print_interference_graph () cish_prog
   else if option = "-pm" then print_string (result2string (compile_prog cish_prog))
   else if option = "-pcfg" then List.fold_left print_cfg () cish_prog
+  else if option = "-pigd" then (pig_debug := true; List.fold_left print_interference_graph () cish_prog)
   else (prerr_string usage_string; exit 1)
