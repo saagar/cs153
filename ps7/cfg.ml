@@ -318,11 +318,11 @@ let reg_alloc (f : func) : func =
    * ignore 29, 30, 31 - sp, fp, ra *)
   let machine_regs : operand list = [Reg Mips.R0; Reg Mips.R1; Reg Mips.R26; 
                                     Reg Mips.R27; Reg Mips.R29; Reg Mips.R30; Reg Mips.R31] in
-  let usable_regs : operand list = [Reg Mips.R2; Reg Mips.R4; Reg Mips.R5;
+  let usable_regs : operand list = [Reg Mips.R2; Reg Mips.R3; Reg Mips.R4; Reg Mips.R5;
                                     Reg Mips.R6; Reg Mips.R7; Reg Mips.R8; Reg Mips.R9; Reg Mips.R10;
                                     Reg Mips.R11; Reg Mips.R12; Reg Mips.R13; Reg Mips.R14; Reg Mips.R15;
                                     Reg Mips.R16; Reg Mips.R17; Reg Mips.R18; Reg Mips.R19; Reg Mips.R20;
-                                    Reg Mips.R21; Reg Mips.R22; Reg Mips.R23; Reg Mips.R24; Reg Mips.R25] in
+                                    Reg Mips.R21; Reg Mips.R22; Reg Mips.R23; Reg Mips.R24; Reg Mips.R25; Reg Mips.R28] in
   (* Number of registers, used to distinguish low- from high-degree nodes *)
   let k_reg = 32 - List.length machine_regs in
   let is_machine_register oper = List.mem oper machine_regs in
