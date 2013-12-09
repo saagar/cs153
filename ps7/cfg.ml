@@ -345,6 +345,25 @@ let reg_alloc (f : func) : func =
   (* color[n] = c is a tuple of node to register color *)
   let color : (operand * operand) list ref = ref [] in
 
+  (* get color[n] *)
+  let retrieve_color node : operand =
+    let rec color_helper n colorlist =
+      match colorlist with
+      | [] -> raise FatalError
+      | (a,b)::tl -> if a = n then b else color_helper n tl
+    in
+    color_helper node !color
+  in
+  (* set color[n] = c *)
+  let set_color node chosen_color =
+    let rec set_helper n c colorlist : (operand * operand) list =
+      match colorlist with
+      | [] -> []
+      | (a,b)::tl -> if a = n then (a,c)::tl else (a,b)::(set_helper n c tl)
+    in
+    let newcolors = set_helper node chosen_color !color in
+    color := newcolors;
+  in
   (* adjList[n] - returns the op set for the node n *)
   let retrieve_adjlist node : OperandSet.t=
     let rec adjlist_helper n adj =
@@ -572,13 +591,34 @@ let reg_alloc (f : func) : func =
   (* ASSIGN COLORS *)
   let assign_colors () =
     let selectstack_loopbody node =
-      let okColors = machine_regs in raise Implement_Me
+      let okColors = ref machine_regs in 
+      let w = retrieve_adjlist node in
+      let rec loop_over_adjlist nodelist =
+        match nodelist with
+        | [] -> ()
+        | hd::tl ->
+            (* TODO - RECHECK THIS LOGIC BECAUSE YOU ARE TIRED SAAGAR. *)
+            let onion = OperandSet.union !coloredNodes !precolored in
+            (if OperandSet.mem (get_alias hd) onion 
+            then
+              let used = retrieve_color (get_alias hd) in
+              let rec remove_okcolor c colorlist : operand list=
+                match colorlist with
+                | [] -> []
+                | hd::tl -> if hd = c then tl else hd::(remove_okcolor c tl)
+              in okColors := remove_okcolor used !okColors);
+        in
+        let _ = loop_over_adjlist (OperandSet.elements w) in
+        (if List.length !okColors = 0 then spilledNodes := OperandSet.add node !spilledNodes
+        else 
+          coloredNodes := OperandSet.add node !coloredNodes;
+          raise Implement_Me);
     in
     (* stack popping loop *)
     let rec selectstack_loop_driver stacklist =
       match stacklist with
       | [] -> ()
-      | hd::tl -> raise Implement_Me
+      | hd::tl -> selectstack_loopbody hd; selectstack_loop_driver tl
     in
     raise Implement_Me
   in
