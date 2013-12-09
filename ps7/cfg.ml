@@ -188,7 +188,10 @@ let build_interfere_graph (f : func) : interfere_graph =
     let rec add_edges_for_item item things_added graph : interfere_graph =
       (match things_added with
       | [] -> graph
-      | hd::tl -> add_edges_for_item item tl (InterfereGraph.add_edge graph item hd false)) in 
+      | hd::tl ->
+	(match (item, hd) with
+	  (Reg _, Reg _) -> add_edges_for_item item tl graph
+	| _ -> add_edges_for_item item tl (InterfereGraph.add_edge graph item hd false))) in 
     (* for each LiveIn set, add all of the edges between all possible pairs in
     * the set. *)
     let rec add_clique_helper things_to_add things_added graph : interfere_graph =
@@ -205,7 +208,10 @@ let build_interfere_graph (f : func) : interfere_graph =
     let rec add_rest_caller_saves item caller_saves graph : interfere_graph =
       (match caller_saves with
       | [] -> graph
-      | hd::tl -> add_rest_caller_saves item tl (InterfereGraph.add_edge graph item hd false)) in 
+      | hd::tl ->
+	(match (item, hd) with
+	  (Reg _, Reg _) -> add_rest_caller_saves item tl graph
+	| _ -> add_rest_caller_saves item tl (InterfereGraph.add_edge graph item hd false))) in 
     let rec add_caller_saves_helper things_to_add graph : interfere_graph =
       match things_to_add with
 	[] -> graph
@@ -235,7 +241,10 @@ let build_interfere_graph (f : func) : interfere_graph =
     let rec add_rest_edges item items graph : interfere_graph =
       (match items with
 	[] -> graph
-      | hd::tl -> add_rest_edges item tl (InterfereGraph.add_edge graph item hd false)) in
+      | hd::tl ->
+	(match (item, hd) with
+	  (Reg _, Reg _) -> add_rest_edges item tl graph
+	| _ -> add_rest_edges item tl (InterfereGraph.add_edge graph item hd false))) in
     let rec add_edges_dead_helper x inset outset genset graph : interfere_graph =
       if (OperandSet.mem x outset = false) && (OperandSet.mem x genset = false) then add_rest_edges x (OperandSet.elements outset) graph else graph in
     match instructions, live_in, live_out with
@@ -324,7 +333,7 @@ let reg_alloc (f : func) : func =
                                     Reg Mips.R16; Reg Mips.R17; Reg Mips.R18; Reg Mips.R19; Reg Mips.R20;
                                     Reg Mips.R21; Reg Mips.R22; Reg Mips.R23; Reg Mips.R24; Reg Mips.R25; Reg Mips.R28] in
   (* Number of registers, used to distinguish low- from high-degree nodes *)
-  let k_reg = 32 - List.length machine_regs in
+  let k_reg = List.length usable_regs in
   let is_machine_register oper = List.mem oper machine_regs in
 
   let precolored = ref OperandSet.empty in
