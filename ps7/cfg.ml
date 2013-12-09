@@ -310,7 +310,7 @@ let rec list_to_moveset list_to_convert : TupleSet.t =
 let list_push (ref_list : operand list ref) node =
   let deref_list = !ref_list in
   let new_list = node::deref_list in
-  ref_list := deref_list
+  ref_list := new_list 
 
 (* pop top item from list, or return none *)
 let list_pop (ref_list : operand list ref) node : operand option =
@@ -526,13 +526,13 @@ let reg_alloc (f : func) : func =
     simplifyWorklist := OperandSet.remove node !simplifyWorklist;
     (* push the node into selectStack *)
     let _ = list_push selectStack node in
-    let neighbors = adjacent node in
     (* get neighbor nodes decremented *)
     let rec dec_degree_loop nodelist =
       match nodelist with
       | [] -> ()
       | hd::tl -> let _ = decrement_degree hd in dec_degree_loop tl
     in
+    dec_degree_loop (OperandSet.elements (adjacent node));
     ()
   in
   (* access alias[u] *)
@@ -590,7 +590,15 @@ let reg_alloc (f : func) : func =
     in
     let movelistupdates = update_movelist u deref_movelist onion in
     moveList := movelistupdates;
-    raise Implement_Me (* TODO - finish!! *)
+    let rec update_adjacents node_u nodelist =
+      match nodelist with
+      | [] -> ()
+      | hd::tl -> add_edge hd node_u; decrement_degree hd; update_adjacents node_u tl;
+    in 
+    update_adjacents u (OperandSet.elements (adjacent v));
+    (if ((retrieve_degree u) >= k_reg) && (OperandSet.mem u !freezeWorklist) then
+      freezeWorklist := OperandSet.remove u !freezeWorklist;
+      spillWorklist := OperandSet.add u !spillWorklist);
   in
   (* COALESCE *)
   let coalesce () =
