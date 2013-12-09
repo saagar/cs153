@@ -345,21 +345,20 @@ let reg_alloc (f : func) : func =
   (* color[n] = c is a tuple of node to register color *)
   let color : (operand * operand) list ref = ref [] in
 
+  (* adjList[n] - returns the op set for the node n *)
+  let retrieve_adjlist node : OperandSet.t=
+    let rec adjlist_helper n adj =
+      match adj with
+      | [] -> raise FatalError
+      | (op,set)::tl -> if op = n then set else adjlist_helper n tl
+    in
+    adjlist_helper node !adjList
+  in
   (* Adjacent(n): should return adjList[n] - selectStack - coalescedNodes *)
   let adjacent node : OperandSet.t =
-    (*let adjList_n = get_adj_nodes graph node in
-    let selectStackSet = list_to_operandset !selectStack in    
-    let onion = OperandSet.union selectStackSet !coalescedNodes in
-    OperandSet.diff adjList_n onion*)
-    let deref_adjList = !adjList in
-    let rec get_nth_list node deref_list : OperandSet.t =
-      match deref_list with
-      | [] -> raise FatalError
-      | (op,set)::tl -> if op = node then set else get_nth_list node tl
-    in
     let selectStackSet = list_to_operandset !selectStack in
     let onion = OperandSet.union selectStackSet !coalescedNodes in
-    let adjList_n_set = get_nth_list node deref_adjList in
+    let adjList_n_set = retrieve_adjlist node in
     OperandSet.diff adjList_n_set onion
   in
   (* NodeMoves(n): get moveList[n] intersect with union of activeMoves and worklistMoves *)
@@ -570,8 +569,13 @@ let reg_alloc (f : func) : func =
     let _ = freeze_moves u in ()
   in
   let select_spill () = raise Implement_Me in
-  let assign_colors () = 
-    let rec selectstack_loop stacklist =
+  (* ASSIGN COLORS *)
+  let assign_colors () =
+    let selectstack_loopbody node =
+      let okColors = machine_regs in raise Implement_Me
+    in
+    (* stack popping loop *)
+    let rec selectstack_loop_driver stacklist =
       match stacklist with
       | [] -> ()
       | hd::tl -> raise Implement_Me
