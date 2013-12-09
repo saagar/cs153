@@ -489,7 +489,7 @@ let reg_alloc (f : func) : func =
   let retrieve_alias node : operand = 
     let rec retrieve_helper n aliaslist =
       match aliaslist with
-      | [] -> raise FatalError (* TODO: is this correct? *)
+      | [] -> raise FatalError (* if we reached end of list, we missed what we were looking for. *)
       | (a,b)::tl -> if a = n then b else retrieve_helper n tl
     in
     retrieve_helper node !alias
@@ -587,7 +587,13 @@ let reg_alloc (f : func) : func =
     simplifyWorklist := OperandSet.add u !simplifyWorklist;
     let _ = freeze_moves u in ()
   in
-  let select_spill () = raise Implement_Me in
+  let select_spill () =
+    (* TODO: need heuristic to pick! *)
+    let m = raise Implement_Me in
+    spillWorklist := OperandSet.remove m !spillWorklist;
+    simplifyWorklist := OperandSet.add m !simplifyWorklist;
+    freeze_moves m;
+  in
   (* ASSIGN COLORS *)
   let assign_colors () =
     let selectstack_loopbody node =
