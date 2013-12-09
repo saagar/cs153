@@ -324,7 +324,7 @@ let rec list_to_moveset list_to_convert : TupleSet.t =
 let list_push (ref_list : operand list ref) node =
   let deref_list = !ref_list in
   let new_list = node::deref_list in
-  ref_list := deref_list
+  ref_list := new_list 
 
 (* pop top item from list, or return none *)
 let list_pop (ref_list : operand list ref) node : operand option =
@@ -376,9 +376,6 @@ let reg_alloc (f : func) : func =
   (* color[n] = c is a tuple of node to register color *)
   let color : (operand * operand) list ref = ref [] in
 
-  let add_edge u v = raise Implement_Me in
-(*     if (u <> v) &&  *)
-
   (* get color[n] *)
   let retrieve_color node : operand =
     let rec color_helper n colorlist =
@@ -407,6 +404,15 @@ let reg_alloc (f : func) : func =
     in
     adjlist_helper node !adjList
   in
+  (* adjList[u] = adjList[u] U {v} *)
+  let unionadd_adjlist u v =
+    let rec set_adjlist_helper u_look v_add nodelist : (operand * OperandSet.t) list =
+      match nodelist with
+      | [] -> []
+      | (op,set)::tl -> if op = u_look then (op,(OperandSet.add v_add set))::tl else (op,set)::(set_adjlist_helper u_look v_add tl)
+    in
+    adjList := set_adjlist_helper u v !adjList
+  in
   (* Adjacent(n): should return adjList[n] - selectStack - coalescedNodes *)
   let adjacent node : OperandSet.t =
     let selectStackSet = list_to_operandset !selectStack in
@@ -426,6 +432,39 @@ let reg_alloc (f : func) : func =
     let onion = TupleSet.union !activeMoves !worklistMoves in
     TupleSet.inter move_nth_list onion
   in
+  (* get degree[n] *)
+  let retrieve_degree node : int =
+    let rec retrieve_helper n nodelist : int =
+      match nodelist with
+      | [] -> raise FatalError
+      | (hd,count)::tl -> if hd = n then count else retrieve_helper n tl
+    in
+    retrieve_helper node !degree
+  in
+  (* degree[n] = degree[n] + 1 *)
+  let increment_degree node =
+    let rec increment_helper n nodelist : (operand * int) list =
+      match nodelist with
+      | [] -> []
+      | (op,count)::tl -> if op = n then (op,count+1)::tl else (op,count)::(increment_helper n tl)
+    in 
+    degree := increment_helper node !degree;
+  in
+  (* AddEdge(u,v) *)
+  let add_edge u v =
+    let quicktup = (u,v) in
+    if (u <> v) && ((TupleSet.mem quicktup !adjSet) = false) 
+    then
+      adjSet := TupleSet.add quicktup !adjSet;
+      let rev_quicktup = (v,u) in
+      adjSet := TupleSet.add rev_quicktup !adjSet;
+      (if (OperandSet.mem u !precolored) = false then
+        unionadd_adjlist u v;
+        increment_degree u);
+      (if (OperandSet.mem v !precolored) = false then
+        unionadd_adjlist v u;
+        increment_degree v);
+  in 
   (* MoveRelated(n) *)
   let move_related node : bool =
     let tupset = node_moves node in
@@ -473,15 +512,6 @@ let reg_alloc (f : func) : func =
     in
     nodes_iterator (OperandSet.elements nodes)
   in
-  (* helper to get degree of a node *)
-  let retrieve_degree node : int =
-    let rec retrieve_helper n nodelist : int =
-      match nodelist with
-      | [] -> raise FatalError
-      | (hd,count)::tl -> if hd = n then count else retrieve_helper n tl
-    in
-    retrieve_helper node !degree
-  in
   (* DecrementDegree(m) *)
   let decrement_degree (node : operand) =
     let m_deg = retrieve_degree node in
@@ -510,13 +540,13 @@ let reg_alloc (f : func) : func =
     simplifyWorklist := OperandSet.remove node !simplifyWorklist;
     (* push the node into selectStack *)
     let _ = list_push selectStack node in
-    let neighbors = adjacent node in
     (* get neighbor nodes decremented *)
     let rec dec_degree_loop nodelist =
       match nodelist with
       | [] -> ()
       | hd::tl -> let _ = decrement_degree hd in dec_degree_loop tl
     in
+    dec_degree_loop (OperandSet.elements (adjacent node));
     ()
   in
   (* access alias[u] *)
@@ -574,7 +604,15 @@ let reg_alloc (f : func) : func =
     in
     let movelistupdates = update_movelist u deref_movelist onion in
     moveList := movelistupdates;
-    raise Implement_Me (* TODO - finish!! *)
+    let rec update_adjacents node_u nodelist =
+      match nodelist with
+      | [] -> ()
+      | hd::tl -> add_edge hd node_u; decrement_degree hd; update_adjacents node_u tl;
+    in 
+    update_adjacents u (OperandSet.elements (adjacent v));
+    (if ((retrieve_degree u) >= k_reg) && (OperandSet.mem u !freezeWorklist) then
+      freezeWorklist := OperandSet.remove u !freezeWorklist;
+      spillWorklist := OperandSet.add u !spillWorklist);
   in
   (* COALESCE *)
   let coalesce () =
