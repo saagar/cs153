@@ -612,7 +612,7 @@ let reg_alloc (f : func) : func =
         (if List.length !okColors = 0 then spilledNodes := OperandSet.add node !spilledNodes
         else 
           coloredNodes := OperandSet.add node !coloredNodes;
-          raise Implement_Me);
+          let c = List.hd !okColors in set_color node c);
     in
     (* stack popping loop *)
     let rec selectstack_loop_driver stacklist =
@@ -620,7 +620,13 @@ let reg_alloc (f : func) : func =
       | [] -> ()
       | hd::tl -> selectstack_loopbody hd; selectstack_loop_driver tl
     in
-    raise Implement_Me
+    let _ = selectstack_loop_driver !selectStack in
+    let rec update_coalesced_colors nodelist =
+      match nodelist with
+      | [] -> ()
+      | hd::tl -> set_color hd (retrieve_color (get_alias hd)); update_coalesced_colors tl
+    in
+    update_coalesced_colors (OperandSet.elements !coalescedNodes)
   in
   let rewrite_program () = raise Implement_Me in
 
