@@ -18,11 +18,11 @@ struct
     (let (vv1, vv2) = if v1 < v2 then (v1, v2) else (v2, v1) in
      if move_related then List.mem (vv1, vv2) g.move_edges else List.mem (vv1, vv2) g.non_move_edges)
   let add_edge g v1 v2 move_related = 
-    if (edge_mem g v1 v2 move_related) || (node_mem g v1 = false) || (node_mem g v2 = false) then g else
+    if (edge_mem g v1 v2 move_related) || (node_mem g v1 = false) || (node_mem g v2 = false) || (v1 = v2) then g else
     (let (vv1, vv2) = if v1 < v2 then (v1, v2) else (v2, v1) in
      if move_related then { nodes = g.nodes; move_edges = (vv1, vv2) :: g.move_edges; non_move_edges = g.non_move_edges }
      else { nodes = g.nodes; move_edges = g.move_edges; non_move_edges = (vv1, vv2) :: g.non_move_edges })
-
+(*
   let rec count_node_in_edges edges node =
     match edges with
     | [] -> 0
@@ -37,7 +37,7 @@ struct
     if (node_mem g v1) then count_node_in_edges g.move_edges v1
     else 0
 
-
+*)
 end
 
 module OperandSet = Set.Make(struct
@@ -388,7 +388,7 @@ let reg_alloc (f : func) : func =
   let set_color node chosen_color =
     let rec set_helper n c colorlist : (operand * operand) list =
       match colorlist with
-      | [] -> []
+      | [] -> [(n, c)]
       | (a,b)::tl -> if a = n then (a,c)::tl else (a,b)::(set_helper n c tl)
     in
     let newcolors = set_helper node chosen_color !color in
@@ -407,7 +407,7 @@ let reg_alloc (f : func) : func =
   let unionadd_adjlist u v =
     let rec set_adjlist_helper u_look v_add nodelist : (operand * OperandSet.t) list =
       match nodelist with
-      | [] -> []
+      | [] -> [(u_look, OperandSet.singleton v_add)] (* this case is hit during setup_initial *)
       | (op,set)::tl -> if op = u_look then (op,(OperandSet.add v_add set))::tl else (op,set)::(set_adjlist_helper u_look v_add tl)
     in
     adjList := set_adjlist_helper u v !adjList
@@ -425,7 +425,7 @@ let reg_alloc (f : func) : func =
   let set_movelist n newlist =
     let rec update_movelist node movelist new_list : (operand * TupleSet.t) list =
       match movelist with
-      | [] -> raise FatalError (* we shouldn't get to this point. if we did, nothing matched and something is wrong *)
+      | [] -> [(node, new_list)]
       | (hd,tupset)::tl -> if (hd = node) then (hd,new_list)::tl else (hd,tupset)::(update_movelist node tl new_list)
     in
     moveList := update_movelist n !moveList newlist
@@ -455,7 +455,7 @@ let reg_alloc (f : func) : func =
   let increment_degree node =
     let rec increment_helper n nodelist : (operand * int) list =
       match nodelist with
-      | [] -> []
+      | [] -> [(n, 1)] (* this case is hit during setup_initial *)
       | (op,count)::tl -> if op = n then (op,count+1)::tl else (op,count)::(increment_helper n tl)
     in 
     degree := increment_helper node !degree;
@@ -477,26 +477,6 @@ let reg_alloc (f : func) : func =
   let move_related node : bool =
     let tupset = node_moves node in
     if TupleSet.is_empty tupset then false else true
-  in
-  let setup_initial graph = (* TODO *)
-    let allnodes = graph.InterfereGraph.nodes in
-    let rec filter_nodes nodelist =
-      match nodelist with
-      | [] -> ()
-      | hd::tl -> (if is_machine_register hd then precolored := OperandSet.add hd !precolored
-        else initial := OperandSet.add hd !initial); filter_nodes tl;
-    in 
-    filter_nodes allnodes in
-  let rec make_worklist graph =
-    (match (OperandSet.elements !initial) with
-      [] -> ()
-    | hd::tl ->
-      (initial := OperandSet.remove hd !initial;
-       let hd_deg = InterfereGraph.get_nonmove_degree graph hd in (* TODO change? *)
-       if hd_deg >= k_reg then spillWorklist := OperandSet.add hd !spillWorklist
-       else if (InterfereGraph.get_move_degree graph hd) > 0 then freezeWorklist := OperandSet.add hd !freezeWorklist (* TODO change? *)
-       else simplifyWorklist := OperandSet.add hd !simplifyWorklist);
-      make_worklist graph)
   in
   (* EnableMoves(nodes) *)
   let enable_moves (nodes : OperandSet.t) =
@@ -573,7 +553,7 @@ let reg_alloc (f : func) : func =
   let set_alias u v =
     let rec new_alias_list u_node v_rename aliaslist : (operand * operand) list =
       match aliaslist with
-      | [] -> []
+      | [] -> [(u_node, v_rename)]
       | (a,b)::tl -> if a = u_node then (a,v_rename)::tl else (a,b)::(new_alias_list u_node v_rename tl)
     in
     let updated_aliases = new_alias_list u v !alias in
@@ -623,7 +603,6 @@ let reg_alloc (f : func) : func =
     worklistMoves := TupleSet.remove m !worklistMoves;
     if (u = v)
     then (coalescedMoves := TupleSet.add m !coalescedMoves; add_worklist u)
-    (* TODO - need ordering invariant for edges? *)
     else if ((OperandSet.mem v !precolored) || (TupleSet.mem (u, v) !adjSet))
     then
       (constrainedMoves := TupleSet.add m !constrainedMoves;
@@ -709,18 +688,39 @@ let reg_alloc (f : func) : func =
     in
     update_coalesced_colors (OperandSet.elements !coalescedNodes)
   in
-  let rewrite_program () = raise Implement_Me in
-
-  let rec main_loop () =
-    (* Appel procedures LivenessAnalysis and Build *)
-    let graph = build_interfere_graph !current_func in
+  let rewrite_program (spilled_nodes:OperandSet.t) = raise Implement_Me in
+  let rec make_worklist () =
+    (match (OperandSet.elements !initial) with
+      [] -> ()
+    | hd::tl ->
+      (initial := OperandSet.remove hd !initial;
+       if retrieve_degree hd >= k_reg then spillWorklist := OperandSet.add hd !spillWorklist
+       else if move_related hd then freezeWorklist := OperandSet.add hd !freezeWorklist
+       else simplifyWorklist := OperandSet.add hd !simplifyWorklist);
+      make_worklist ())
+  in
+  (* Initialize Appel data structures from the graph we made for PS7 *)
+  let setup_initial graph =
+    let allnodes = graph.InterfereGraph.nodes in
+    let interfere_edges = graph.InterfereGraph.non_move_edges in
+    let rec filter_nodes nodelist =
+      match nodelist with
+      | [] -> ()
+      | hd::tl -> (if is_machine_register hd then precolored := OperandSet.add hd !precolored
+        else initial := OperandSet.add hd !initial); filter_nodes tl;
+    in
+    let add_move_to_movelists (u,v) =
+      set_movelist u (TupleSet.add (u,v) (retrieve_movelist u));
+      set_movelist v (TupleSet.add (u,v) (retrieve_movelist v))
+    in
     worklistMoves := list_to_moveset graph.InterfereGraph.move_edges;
     coalescedMoves := TupleSet.empty;
     constrainedMoves := TupleSet.empty;
     frozenMoves := TupleSet.empty;
     activeMoves := TupleSet.empty;
-    (* setup node worklists *)
-    setup_initial graph;
+    initial := OperandSet.empty;
+    precolored := OperandSet.empty;
+    filter_nodes allnodes;
     simplifyWorklist := OperandSet.empty;
     freezeWorklist := OperandSet.empty;
     spillWorklist := OperandSet.empty;
@@ -728,7 +728,21 @@ let reg_alloc (f : func) : func =
     coalescedNodes := OperandSet.empty;
     coloredNodes := OperandSet.empty;
     selectStack := [];
-    make_worklist graph;
+    make_worklist ();
+    adjSet := TupleSet.empty;
+    adjList := [];
+    degree := [];
+    moveList := [];
+    alias := [];
+    color := [];
+    List.iter (fun (u,v) -> add_edge u v) interfere_edges;
+    OperandSet.iter (fun reg -> set_color reg reg) !precolored;
+    List.iter add_move_to_movelists graph.InterfereGraph.move_edges
+  in
+  let rec main_loop () =
+    (* Appel procedures LivenessAnalysis, Build, MakeWorklist *)
+    let graph = build_interfere_graph !current_func in
+    setup_initial graph;
     let rec inner_loop () =
       let _ = if OperandSet.is_empty !simplifyWorklist = false then simplify ()
         else if TupleSet.is_empty !worklistMoves = false then coalesce ()
@@ -742,7 +756,7 @@ let reg_alloc (f : func) : func =
     in
     inner_loop ();
     assign_colors ();
-    if OperandSet.is_empty !spilledNodes = false then (rewrite_program (); main_loop ());
+    if OperandSet.is_empty !spilledNodes = false then (rewrite_program !spilledNodes; main_loop ());
     ()
   in
   main_loop ();
