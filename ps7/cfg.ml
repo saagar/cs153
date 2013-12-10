@@ -638,15 +638,19 @@ let reg_alloc (f : func) : func =
     else
       activeMoves := TupleSet.add m !activeMoves
   in
-  let freeze_moves (node : operand) = (* TODO iterate over node_moves node *)
-    let m = TupleSet.choose (node_moves node) in
-    activeMoves := TupleSet.remove m !activeMoves;
-    frozenMoves := TupleSet.add m !frozenMoves;
-    let (x, y) = m in
-    let v = if (get_alias y) = (get_alias node) then get_alias x else get_alias y in
-    if (TupleSet.is_empty (node_moves v)) && (retrieve_degree v < k_reg) then
-      (freezeWorklist := OperandSet.remove v !freezeWorklist;
-       simplifyWorklist := OperandSet.add v !simplifyWorklist)
+  let freeze_moves (node : operand) =
+    let rec freeze_moves_helper moves =
+      let m = TupleSet.choose moves in
+      activeMoves := TupleSet.remove m !activeMoves;
+      frozenMoves := TupleSet.add m !frozenMoves;
+      let (x, y) = m in
+      let v = if (get_alias y) = (get_alias node) then get_alias x else get_alias y in
+      (if (TupleSet.is_empty (node_moves v)) && (retrieve_degree v < k_reg) then
+	  (freezeWorklist := OperandSet.remove v !freezeWorklist;
+	   simplifyWorklist := OperandSet.add v !simplifyWorklist));
+      freeze_moves_helper (TupleSet.remove m moves)
+    in
+    freeze_moves_helper (node_moves node)
   in
   (* FREEZE *)
   let freeze () = 
