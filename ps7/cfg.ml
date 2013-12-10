@@ -523,13 +523,12 @@ let reg_alloc (f : func) : func =
     let new_degree_list = dec_deg_for_node node !degree in 
     degree := new_degree_list;
     if m_deg = k_reg 
-    then 
-      let abunchofnodes = OperandSet.add node (adjacent node) in 
-      enable_moves abunchofnodes;
-      spillWorklist := OperandSet.remove node !spillWorklist;
-      if (move_related node) then freezeWorklist := OperandSet.add node !freezeWorklist
-      else simplifyWorklist := OperandSet.add node !simplifyWorklist;
-    else ()
+    then
+      (let abunchofnodes = OperandSet.add node (adjacent node) in 
+       enable_moves abunchofnodes;
+       spillWorklist := OperandSet.remove node !spillWorklist;
+       if (move_related node) then freezeWorklist := OperandSet.add node !freezeWorklist
+       else simplifyWorklist := OperandSet.add node !simplifyWorklist)
   in
   (* SIMPLIFY *)
   let simplify () = 
@@ -537,12 +536,12 @@ let reg_alloc (f : func) : func =
     (* remove node from the worklist *)
     simplifyWorklist := OperandSet.remove node !simplifyWorklist;
     (* push the node into selectStack *)
-    let _ = list_push selectStack node in
+    list_push selectStack node;
     (* get neighbor nodes decremented *)
     let rec dec_degree_loop nodelist =
       match nodelist with
       | [] -> ()
-      | hd::tl -> let _ = decrement_degree hd in dec_degree_loop tl
+      | hd::tl -> (decrement_degree hd; dec_degree_loop tl)
     in
     dec_degree_loop (OperandSet.elements (adjacent node));
     ()
@@ -558,7 +557,7 @@ let reg_alloc (f : func) : func =
   in
   (* GetAlias(n) - returns the alias of some node n *)
   let rec get_alias node : operand = 
-    if OperandSet.mem node !coalescedNodes then (get_alias (retrieve_alias node)) else node;
+    if OperandSet.mem node !coalescedNodes then (get_alias (retrieve_alias node)) else node
   in
   (* alias[u] = v *)
   let set_alias u v =
@@ -572,9 +571,9 @@ let reg_alloc (f : func) : func =
   in
   (* AddWorkList(u) *)
   let add_worklist node = 
-    if ((OperandSet.for_all (fun x -> node = x) !precolored) = false && (move_related node) = false && (retrieve_degree node) < k_reg) then
-      freezeWorklist := OperandSet.remove node !freezeWorklist;
-      simplifyWorklist := OperandSet.add node !simplifyWorklist;
+    if (OperandSet.mem node !precolored = false && (move_related node) = false && (retrieve_degree node) < k_reg) then
+      (freezeWorklist := OperandSet.remove node !freezeWorklist;
+       simplifyWorklist := OperandSet.add node !simplifyWorklist)
   in
   let ok t r = 
     ((retrieve_degree t) < k_reg) || (OperandSet.mem t !precolored) || (TupleSet.mem (t,r) !adjSet)
