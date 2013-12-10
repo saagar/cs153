@@ -468,7 +468,7 @@ let reg_alloc (f : func) : func =
     let tupset = node_moves node in
     if TupleSet.is_empty tupset then false else true
   in
-  let setup_initial graph = 
+  let setup_initial graph = (* TODO *)
     let allnodes = graph.InterfereGraph.nodes in
     let rec filter_nodes nodelist =
       match nodelist with
@@ -482,23 +482,23 @@ let reg_alloc (f : func) : func =
       [] -> ()
     | hd::tl ->
       (initial := OperandSet.remove hd !initial;
-       let hd_deg = InterfereGraph.get_nonmove_degree graph hd in
+       let hd_deg = InterfereGraph.get_nonmove_degree graph hd in (* TODO change? *)
        if hd_deg >= k_reg then spillWorklist := OperandSet.add hd !spillWorklist
-       else if (InterfereGraph.get_move_degree graph hd) > 0 then freezeWorklist := OperandSet.add hd !freezeWorklist
+       else if (InterfereGraph.get_move_degree graph hd) > 0 then freezeWorklist := OperandSet.add hd !freezeWorklist (* TODO change? *)
        else simplifyWorklist := OperandSet.add hd !simplifyWorklist);
       make_worklist graph)
   in
-  (* EnableMoves(n) *)
+  (* EnableMoves(nodes) *)
   let enable_moves (nodes : OperandSet.t) =
     let inner_iterator single_node =
       (* inner loop updater *)
       let rec update_moves tuplist =
         match tuplist with
         | [] -> ()
-        | hd::tl -> (if TupleSet.exists (fun x -> x = hd) !activeMoves 
-                    then activeMoves := TupleSet.remove hd !activeMoves;
-                        worklistMoves := TupleSet.add hd !worklistMoves);
-                    update_moves tl
+        | hd::tl -> (if TupleSet.mem hd !activeMoves 
+          then (activeMoves := TupleSet.remove hd !activeMoves;
+                worklistMoves := TupleSet.add hd !worklistMoves));
+          update_moves tl
       in
       update_moves (TupleSet.elements (node_moves single_node))
     in
@@ -506,7 +506,7 @@ let reg_alloc (f : func) : func =
     let rec nodes_iterator nodelist =
       match nodelist with
       | [] -> ()
-      | hd::tl -> inner_iterator hd; nodes_iterator tl;
+      | hd::tl -> inner_iterator hd; nodes_iterator tl
     in
     nodes_iterator (OperandSet.elements nodes)
   in
