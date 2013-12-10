@@ -452,18 +452,16 @@ let reg_alloc (f : func) : func =
   in
   (* AddEdge(u,v) *)
   let add_edge u v =
-    let quicktup = (u,v) in
-    if (u <> v) && ((TupleSet.mem quicktup !adjSet) = false) 
+    if (u <> v) && ((TupleSet.mem (u,v) !adjSet) = false) 
     then
-      adjSet := TupleSet.add quicktup !adjSet;
-      let rev_quicktup = (v,u) in
-      adjSet := TupleSet.add rev_quicktup !adjSet;
-      (if (OperandSet.mem u !precolored) = false then
-        unionadd_adjlist u v;
-        increment_degree u);
-      (if (OperandSet.mem v !precolored) = false then
-        unionadd_adjlist v u;
-        increment_degree v);
+      (adjSet := TupleSet.add (u,v) !adjSet;
+       adjSet := TupleSet.add (v,u) !adjSet;
+       (if (OperandSet.mem u !precolored) = false then
+           (unionadd_adjlist u v;
+            increment_degree u));
+       (if (OperandSet.mem v !precolored) = false then
+           (unionadd_adjlist v u;
+            increment_degree v)))
   in 
   (* MoveRelated(n) *)
   let move_related node : bool =
