@@ -440,15 +440,8 @@ let reg_alloc (f : func) : func =
   in
   (* NodeMoves(n): get moveList[n] intersect with union of activeMoves and worklistMoves *)
   let node_moves node : TupleSet.t =
-    let rec get_nth_list node deref_list : TupleSet.t =
-      match deref_list with
-      | [] -> raise FatalError
-      | (op,tupset)::tl -> if op = node then tupset else get_nth_list node tl
-    in
-    let deref_movelist = !moveList in
-    let move_nth_list = get_nth_list node deref_movelist in
     let onion = TupleSet.union !activeMoves !worklistMoves in
-    TupleSet.inter move_nth_list onion
+    TupleSet.inter (retrieve_movelist node) onion
   in
   (* get degree[n] *)
   let retrieve_degree node : int =
@@ -630,7 +623,7 @@ let reg_alloc (f : func) : func =
     let (u, v) = (if OperandSet.mem y_alias !precolored then (y_alias, x_alias) else (x_alias, y_alias)) in
     worklistMoves := TupleSet.remove m !worklistMoves;
     if (u = v)
-    then (coalescedMoves := TupleSet.add m !coalescedMoves; (add_worklist u))
+    then (coalescedMoves := TupleSet.add m !coalescedMoves; add_worklist u)
     (* TODO - need ordering invariant for edges? *)
     else if ((OperandSet.mem v !precolored) || (TupleSet.mem (u, v) !adjSet))
     then
@@ -638,7 +631,7 @@ let reg_alloc (f : func) : func =
        add_worklist u;
        add_worklist v)
     else if ((OperandSet.mem u !precolored) && (OperandSet.for_all (fun t -> ok t u) (adjacent v))
-		|| (OperandSet.mem u !precolored = false) && (conservative (OperandSet.union (adjacent u) (adjacent v))))
+	     || (OperandSet.mem u !precolored = false) && (conservative (OperandSet.union (adjacent u) (adjacent v))))
     then
       (coalescedMoves := TupleSet.add m !coalescedMoves;
        combine u v;
@@ -646,18 +639,15 @@ let reg_alloc (f : func) : func =
     else
       activeMoves := TupleSet.add m !activeMoves
   in
-  let freeze_moves (node : operand) =
+  let freeze_moves (node : operand) = (* TODO iterate over node_moves node *)
     let m = TupleSet.choose (node_moves node) in
     activeMoves := TupleSet.remove m !activeMoves;
     frozenMoves := TupleSet.add m !frozenMoves;
     let (x, y) = m in
-    let v : operand ref = ref x in
-    (if (get_alias y) = (get_alias node) then
-      v := get_alias x
-    else v := get_alias y);
-    if (TupleSet.is_empty (node_moves !v)) && (retrieve_degree !v < k_reg) then
-      freezeWorklist := OperandSet.remove !v !freezeWorklist;
-      simplifyWorklist := OperandSet.add !v !simplifyWorklist;
+    let v = if (get_alias y) = (get_alias node) then get_alias x else get_alias y in
+    if (TupleSet.is_empty (node_moves v)) && (retrieve_degree v < k_reg) then
+      (freezeWorklist := OperandSet.remove v !freezeWorklist;
+       simplifyWorklist := OperandSet.add v !simplifyWorklist)
   in
   (* FREEZE *)
   let freeze () = 
