@@ -664,45 +664,48 @@ let reg_alloc (f : func) : func =
     let m = raise Implement_Me in
     spillWorklist := OperandSet.remove m !spillWorklist;
     simplifyWorklist := OperandSet.add m !simplifyWorklist;
-    freeze_moves m;
+    freeze_moves m
   in
   (* ASSIGN COLORS *)
   let assign_colors () =
     let selectstack_loopbody node =
-      let okColors = ref usable_regs in 
+      let okColors = ref usable_regs in
       let w = retrieve_adjlist node in
       let rec loop_over_adjlist nodelist =
         match nodelist with
         | [] -> ()
         | hd::tl ->
-            (* TODO - RECHECK THIS LOGIC BECAUSE YOU ARE TIRED SAAGAR. *)
-            let onion = OperandSet.union !coloredNodes !precolored in
-            (if OperandSet.mem (get_alias hd) onion 
-            then
+          let onion = OperandSet.union !coloredNodes !precolored in
+          (if OperandSet.mem (get_alias hd) onion 
+           then
               let used = retrieve_color (get_alias hd) in
               let rec remove_okcolor c colorlist : operand list=
                 match colorlist with
                 | [] -> []
-                | hd::tl -> if hd = c then tl else hd::(remove_okcolor c tl)
+                | hd2::tl2 -> if hd2 = c then tl2 else hd2::(remove_okcolor c tl2)
               in okColors := remove_okcolor used !okColors);
-        in
-        let _ = loop_over_adjlist (OperandSet.elements w) in
-        (if List.length !okColors = 0 then spilledNodes := OperandSet.add node !spilledNodes
-        else 
-          coloredNodes := OperandSet.add node !coloredNodes;
-          let c = List.hd !okColors in set_color node c);
+	  loop_over_adjlist tl
+      in
+      let _ = loop_over_adjlist (OperandSet.elements w) in
+      (if List.length !okColors = 0 then spilledNodes := OperandSet.add node !spilledNodes
+       else 
+          (coloredNodes := OperandSet.add node !coloredNodes;
+	   let c = List.hd !okColors in set_color node c))
     in
-    (* stack popping loop *)
+    (* stack popping loop. EJ: this doesn't actually pop them, so add a line selectStack := [] *)
     let rec selectstack_loop_driver stacklist =
       match stacklist with
       | [] -> ()
       | hd::tl -> selectstack_loopbody hd; selectstack_loop_driver tl
     in
     let _ = selectstack_loop_driver !selectStack in
+    let _ = selectStack := [] in
     let rec update_coalesced_colors nodelist =
       match nodelist with
       | [] -> ()
-      | hd::tl -> set_color hd (retrieve_color (get_alias hd)); update_coalesced_colors tl
+      | hd::tl ->
+	set_color hd (retrieve_color (get_alias hd));
+	update_coalesced_colors tl
     in
     update_coalesced_colors (OperandSet.elements !coalescedNodes)
   in
