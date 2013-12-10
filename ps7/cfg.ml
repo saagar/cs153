@@ -53,28 +53,26 @@ module TupleSet = Set.Make(struct
 (* Gen for instructions. Returns operand set containing all Gens required for
  * one instruction *)
 let inst_gen inst : OperandSet.t =
-  let opset = OperandSet.empty in
   match inst with
-  | Label _ | Jump _ -> opset
+  | Label _ | Jump _ -> OperandSet.empty
   (* Return uses $2 *)
-  | Return -> OperandSet.add (Reg Mips.R2) opset
-  | Move (o1, o2) -> OperandSet.add o2 opset
-  | Arith (o1, o2, _, o3) -> OperandSet.add o2 (OperandSet.add o3 opset)
-  | Load (o1, o2, _) -> OperandSet.add o2 opset
-  | Store (o1, _, o2) -> OperandSet.add o1 (OperandSet.add o2 opset)
+  | Return -> OperandSet.singleton (Reg Mips.R2)
+  | Move (o1, o2) -> OperandSet.singleton o2
+  | Arith (o1, o2, _, o3) -> List.fold_right OperandSet.add [o2; o3] OperandSet.empty
+  | Load (o1, o2, _) -> OperandSet.singleton o2
+  | Store (o1, _, o2) -> List.fold_right OperandSet.add [o1; o2] OperandSet.empty
   (* Call uses the argument registers according to Lucas *)
-  | Call op -> OperandSet.add op (OperandSet.add (Reg Mips.R4) (OperandSet.add (Reg Mips.R5) (OperandSet.add (Reg Mips.R6) (OperandSet.add (Reg Mips.R7) opset))))
-  | If (o1, _, o2, _, _) -> OperandSet.add o1 (OperandSet.add o2 opset)
+  | Call op -> List.fold_right OperandSet.add [op; Reg Mips.R4; Reg Mips.R5; Reg Mips.R6; Reg Mips.R7] OperandSet.empty
+  | If (o1, _, o2, _, _) -> List.fold_right OperandSet.add [o1; o2] OperandSet.empty
 
 (* Kill for instructions. Returns operand set containing all Kills required for
  * one instruction *)
 let inst_kill inst : OperandSet.t =
-  let killset = OperandSet.empty in
   match inst with
   | Move (o1, _)
   | Arith (o1, _, _, _) 
-  | Load (o1, _, _) -> OperandSet.add o1 killset
-  | _ -> killset
+  | Load (o1, _, _) -> OperandSet.singleton o1
+  | _ -> OperandSet.empty
 
 (* for convergence *)
 let changed : bool ref = ref true
