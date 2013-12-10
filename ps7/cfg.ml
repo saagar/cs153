@@ -762,9 +762,21 @@ let reg_alloc (f : func) : func =
   main_loop ();
   !current_func
 
+(* translate a single CFG inst into one or more Mips insts *)
+let cfgi2mipsi (i:inst) : Mips.inst list =
+  match i with
+    Label lbl -> [Mips.Label lbl]
+  | _ -> raise Implement_Me
+
 (* Finally, translate the output of reg_alloc to Mips instructions *)
 let cfg_to_mips (f : func) : Mips.inst list = 
-    raise Implement_Me
+  let insts = List.flatten f in
+  let rec cfg2mips_loop (instructions:inst list) : Mips.inst list =
+    (match instructions with
+      [] -> []
+    | hd::tl -> cfgi2mipsi hd @ cfg2mips_loop tl)
+  in
+  cfg2mips_loop insts
 
 let compile_func (f:C.func) : Mips.inst list =
   let cfg = fn2blocks f in
