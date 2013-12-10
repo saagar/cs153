@@ -55,7 +55,7 @@ module TupleSet = Set.Make(struct
 let inst_gen inst : OperandSet.t =
   match inst with
   | Label _ | Jump _ -> OperandSet.empty
-  (* Return uses $2 *)
+  (* Return uses $2 (and $31 but that's not an available color) *)
   | Return -> OperandSet.singleton (Reg Mips.R2)
   | Move (o1, o2) -> OperandSet.singleton o2
   | Arith (o1, o2, _, o3) -> List.fold_right OperandSet.add [o2; o3] OperandSet.empty
@@ -72,6 +72,7 @@ let inst_kill inst : OperandSet.t =
   | Move (o1, _)
   | Arith (o1, _, _, _) 
   | Load (o1, _, _) -> OperandSet.singleton o1
+  | Call _ -> OperandSet.singleton (Reg Mips.R2)
   | _ -> OperandSet.empty
 
 (* for convergence *)
@@ -215,7 +216,7 @@ let build_interfere_graph (f : func) : interfere_graph =
   let add_caller_saves_interfere (t:OperandSet.t) (g:interfere_graph) =
     let elts = OperandSet.elements t in
     let all_caller_saves = List.map (fun x -> Reg x) 
-                      [Mips.R8;Mips.R9;Mips.R10;Mips.R11;Mips.R12;Mips.R13;Mips.R14;Mips.R15;Mips.R24;Mips.R25] in
+                      [Mips.R2;Mips.R8;Mips.R9;Mips.R10;Mips.R11;Mips.R12;Mips.R13;Mips.R14;Mips.R15;Mips.R24;Mips.R25] in
     let rec add_rest_caller_saves item caller_saves graph : interfere_graph =
       (match caller_saves with
       | [] -> graph
