@@ -413,6 +413,24 @@ let reg_alloc (f : func) : func =
     in
     adjList := set_adjlist_helper u v !adjList
   in
+  (* get moveList[n] *)
+  let retrieve_movelist node : TupleSet.t =
+    let rec movelist_helper n moves =
+      match moves with
+	[] -> raise FatalError
+      | (op,set)::tl -> if op = n then set else movelist_helper n tl
+    in
+    movelist_helper node !moveList
+  in
+  (* set moveList[n] := newlist *)
+  let set_movelist n newlist =
+    let rec update_movelist node movelist new_list : (operand * TupleSet.t) list =
+      match movelist with
+      | [] -> raise FatalError (* we shouldn't get to this point. if we did, nothing matched and something is wrong *)
+      | (hd,tupset)::tl -> if (hd = node) then (hd,new_list)::tl else (hd,tupset)::(update_movelist node tl new_list)
+    in
+    moveList := update_movelist n !moveList newlist
+  in
   (* Adjacent(n): should return adjList[n] - selectStack - coalescedNodes *)
   let adjacent node : OperandSet.t =
     let selectStackSet = list_to_operandset !selectStack in
@@ -584,32 +602,24 @@ let reg_alloc (f : func) : func =
     k < k_reg
   in
   let combine u v =
-   (if OperandSet.mem v !freezeWorklist then
-      freezeWorklist := OperandSet.remove v !freezeWorklist
-    else
-      spillWorklist := OperandSet.remove v !spillWorklist);
-    coalescedNodes := OperandSet.add u !coalescedNodes;
+    (if OperandSet.mem v !freezeWorklist then
+	freezeWorklist := OperandSet.remove v !freezeWorklist
+     else
+	spillWorklist := OperandSet.remove v !spillWorklist);
+    coalescedNodes := OperandSet.add v !coalescedNodes;
     set_alias v u;
-    let u_movelist = node_moves u in
-    let v_movelist = node_moves v in
-    let onion = TupleSet.union u_movelist v_movelist in
-    let deref_movelist = !moveList in
-    let rec update_movelist node movelist new_list : (operand * TupleSet.t) list =
-      match movelist with
-      | [] -> raise FatalError (* we shouldn't get to this point. if we did, nothing matched and something is wrong *)
-      | (hd,tupset)::tl -> if (hd = node) then (hd,new_list)::tl else (hd,tupset)::(update_movelist node tl new_list)
-    in
-    let movelistupdates = update_movelist u deref_movelist onion in
-    moveList := movelistupdates;
+    let onion = TupleSet.union (retrieve_movelist u) (retrieve_movelist v) in
+    let _ = set_movelist u onion in
+    let _ = enable_moves (OperandSet.singleton v) in
     let rec update_adjacents node_u nodelist =
-      match nodelist with
+      (match nodelist with
       | [] -> ()
-      | hd::tl -> add_edge hd node_u; decrement_degree hd; update_adjacents node_u tl;
-    in 
+      | hd::tl -> (add_edge hd node_u; decrement_degree hd; update_adjacents node_u tl))
+    in
     update_adjacents u (OperandSet.elements (adjacent v));
     (if ((retrieve_degree u) >= k_reg) && (OperandSet.mem u !freezeWorklist) then
-      freezeWorklist := OperandSet.remove u !freezeWorklist;
-      spillWorklist := OperandSet.add u !spillWorklist);
+	(freezeWorklist := OperandSet.remove u !freezeWorklist;
+	 spillWorklist := OperandSet.add u !spillWorklist))
   in
   (* COALESCE *)
   let coalesce () =
