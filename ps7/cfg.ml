@@ -931,7 +931,29 @@ let cfgi2mipsi (i:inst) : Mips.inst list =
       | Reg(r1), Reg(r2) -> [Mips.Add(r1,r2,Mips.Immed(0l))]
       | Reg(r1), Int(i) -> [Mips.Li(r1,(Int32.of_int i))]
       | _ -> raise IllegalCFG) 
-  | Arith(o1,o2,a,o3) -> raise Implement_Me
+  | Arith(o1,o2,a,o3) -> 
+      let get_operation_inst (r1 : Mips.reg) (r2 : Mips.reg) (dest : Mips.reg) : Mips.inst =
+        match a with
+        | Plus -> Mips.Add(dest,r1,Mips.Reg(r2)) (* this takes an operand .. *)
+        | Minus -> Mips.Sub(dest, r1, r2)
+        | Times -> Mips.Mul(dest, r1, r2)
+        | Div -> Mips.Div(dest, r1, r2)
+      in
+      let o1reg = to_mips_reg o1 in
+      (match (o2,o3) with
+      | Reg(r1), Reg(r2) -> [(get_operation_inst r1 r2 o1reg)]
+      | Reg(r), Int(i) -> [Mips.Li(Mips.R3, (Int32.of_int i)); (get_operation_inst r Mips.R3 o1reg)]
+      | Int(i), Reg(r) -> [Mips.Li(Mips.R3, (Int32.of_int i)); (get_operation_inst Mips.R3 r o1reg)]
+      | Int(i1), Int(i2) -> 
+          (* we can optimize this! *)
+          let calc =
+            (match a with
+            | Plus -> i1 + i2
+            | Minus -> i1 - i2
+            | Times -> i1 * i2
+            | Div -> i1 / i2)
+          in [Mips.Li((to_mips_reg o1), (Int32.of_int calc))]
+      | _ -> raise IllegalCFG)
   | Load(o1,o2,i) -> [Mips.Lw((to_mips_reg o1),(to_mips_reg o2),(Int32.of_int i))]
   | Store(o1,i,o2) -> [Mips.Sw((to_mips_reg o2),(to_mips_reg o1),(Int32.of_int i))]
   | Call foo -> [Mips.Jal (to_mips_label foo)]
