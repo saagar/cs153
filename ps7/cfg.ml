@@ -897,7 +897,14 @@ let to_mips_op (op : operand) : Mips.operand =
 let cfgi2mipsi (i:inst) : Mips.inst list =
   match i with
     Label lbl -> [Mips.Label lbl]
-  | _ -> raise Implement_Me
+  | Move(o1,o2) -> raise Implement_Me
+  | Arith(o1,o2,a,o3) -> raise Implement_Me
+  | Load(o1,o2,i) -> raise Implement_Me
+  | Store(o1,i,o2) -> raise Implement_Me
+  | Call op -> raise Implement_Me
+  | Jump lbl -> raise Implement_Me
+  | If(o1,co1,o2,l1,l2) -> raise Implement_Me
+  | Return -> [Mips.Jr Mips.R31]
 
 (* Finally, translate the output of reg_alloc to Mips instructions *)
 let cfg_to_mips (f : func) : Mips.inst list = 
