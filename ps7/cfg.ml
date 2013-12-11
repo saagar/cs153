@@ -1026,68 +1026,79 @@ let cfgi2mipsi (i:inst) : Mips.inst list =
   match i with
     Label lbl -> [Mips.Label (mangle lbl)]
   | Move(o1,o2) ->
-      (if o1 <> o2 then
+    (if o1 <> o2 then
         (match (o1,o2) with
         | Reg(r1), Reg(r2) -> [Mips.Add(r1,r2,Mips.Immed(0l))]
         | Reg(r1), Int(i) -> [Mips.Li(r1,(Int32.of_int i))]
         | _ -> raise IllegalCFG) 
-      else []);
+     else [])
   | Arith(o1,o2,a,o3) -> 
-      let get_operation_inst (r1 : Mips.reg) (r2 : Mips.reg) (dest : Mips.reg) : Mips.inst =
-        match a with
-        | Plus -> Mips.Add(dest,r1,Mips.Reg(r2)) (* this takes an operand .. *)
-        | Minus -> Mips.Sub(dest, r1, r2)
-        | Times -> Mips.Mul(dest, r1, r2)
-        | Div -> Mips.Div(dest, r1, r2)
-      in
-      let o1reg = to_mips_reg o1 in
-      (match (o2,o3) with
-      | Reg(r1), Reg(r2) -> [(get_operation_inst r1 r2 o1reg)]
-      | Reg(r), Int(i) -> [Mips.Li(Mips.R3, (Int32.of_int i)); (get_operation_inst r Mips.R3 o1reg)]
-      | Int(i), Reg(r) -> [Mips.Li(Mips.R3, (Int32.of_int i)); (get_operation_inst Mips.R3 r o1reg)]
-      | Int(i1), Int(i2) -> 
+    let get_operation_inst (r1 : Mips.reg) (r2 : Mips.reg) (dest : Mips.reg) : Mips.inst =
+      match a with
+      | Plus -> Mips.Add(dest,r1,Mips.Reg(r2)) (* this takes an operand .. *)
+      | Minus -> Mips.Sub(dest, r1, r2)
+      | Times -> Mips.Mul(dest, r1, r2)
+      | Div -> Mips.Div(dest, r1, r2)
+    in
+    let o1reg = to_mips_reg o1 in
+    (match (o2,o3) with
+    | Reg(r1), Reg(r2) -> [(get_operation_inst r1 r2 o1reg)]
+    | Reg(r), Int(i) -> [Mips.Li(Mips.R3, (Int32.of_int i)); (get_operation_inst r Mips.R3 o1reg)]
+    | Int(i), Reg(r) -> [Mips.Li(Mips.R3, (Int32.of_int i)); (get_operation_inst Mips.R3 r o1reg)]
+    | Int(i1), Int(i2) -> 
           (* we can optimize this! *)
-          let calc =
-            (match a with
-            | Plus -> i1 + i2
-            | Minus -> i1 - i2
-            | Times -> i1 * i2
-            | Div -> i1 / i2)
-          in [Mips.Li((to_mips_reg o1), (Int32.of_int calc))]
-      | _ -> raise IllegalCFG)
-  | Load(o1,o2,i) -> [Mips.Lw((to_mips_reg o1),(to_mips_reg o2),(Int32.of_int i))]
-  | Store(o1,i,o2) -> [Mips.Sw((to_mips_reg o2),(to_mips_reg o1),(Int32.of_int i))]
-  | Call foo -> [Mips.Jal (to_mips_label foo)]
+      let calc =
+        (match a with
+        | Plus -> i1 + i2
+        | Minus -> i1 - i2
+        | Times -> i1 * i2
+        | Div -> i1 / i2)
+      in [Mips.Li((to_mips_reg o1), (Int32.of_int calc))]
+    | _ -> raise IllegalCFG)
+  | Load(o1,o2,i) ->
+    (match (o1, o2) with
+      Reg r1, Reg r2 -> [Mips.Lw((to_mips_reg o1),(to_mips_reg o2),(Int32.of_int i))]
+    | _ -> raise IllegalCFG)
+  | Store(o1,i,o2) ->
+    (match (o1, o2) with
+      Reg r1, Reg r2 -> [Mips.Sw((to_mips_reg o2),(to_mips_reg o1),(Int32.of_int i))]
+    | Reg r1, Int x -> [Mips.Li(Mips.R3, (Int32.of_int x)); Mips.Sw(Mips.R3, to_mips_reg o1, Int32.of_int i)]
+    | _ -> raise IllegalCFG)
+  | Call foo ->
+    (match foo with
+      Lab _ -> [Mips.Jal (to_mips_label foo)]
+    | Reg r1 -> [Mips.Jalr(r1, Mips.R31)]
+    | _ -> raise IllegalCFG)
   | Jump lbl -> [Mips.J (mangle lbl)]
   | If(o1,co1,o2,l1,l2) -> 
-      let get_branch_inst (r1 : Mips.reg) (r2 : Mips.reg) : Mips.inst =
-        (match co1 with
-          | Eq ->  Mips.Beq(r1,r2,l1)
-          | Neq -> Mips.Bne(r1,r2,l1)
-          | Lt ->  Mips.Blt(r1,r2,l1)
-          | Lte -> Mips.Ble(r1,r2,l1)
-          | Gt ->  Mips.Bgt(r1,r2,l1)
-          | Gte -> Mips.Bge(r1,r2,l1)
-        )
-      in
-      (match (o1, o2) with
-      | Reg(r1), Reg(r2) -> [(get_branch_inst r1 r2); Mips.J(l2)]
-      | Reg(r), Int(i) -> [Mips.Li(Mips.R3, (Int32.of_int i));(get_branch_inst r Mips.R3);Mips.J(l2) ]
-      | Int(i), Reg(r) -> [Mips.Li(Mips.R3, (Int32.of_int i));(get_branch_inst Mips.R3 r);Mips.J(l2)]
-        | Int(i1), Int(i2) ->
-            let calc =
-            (* we can optimize this! *)
-              (match co1 with 
-                | Eq -> if i1 = i2 then Mips.J(l1) else Mips.J(l2)
-                | Neq ->if i1 <>i2 then Mips.J(l1) else Mips.J(l2)
-                | Lt -> if i1 < i2 then Mips.J(l1) else Mips.J(l2)
-                | Lte ->if i1 <=i2 then Mips.J(l1) else Mips.J(l2)
-                | Gt -> if i1 > i2 then Mips.J(l1) else Mips.J(l2)
-                | Gte ->if i1 >=i2 then Mips.J(l1) else Mips.J(l2)
-              )
-            in [calc]
-        | _ -> raise IllegalCFG
+    let get_branch_inst (r1 : Mips.reg) (r2 : Mips.reg) : Mips.inst =
+      (match co1 with
+      | Eq ->  Mips.Beq(r1,r2,l1)
+      | Neq -> Mips.Bne(r1,r2,l1)
+      | Lt ->  Mips.Blt(r1,r2,l1)
+      | Lte -> Mips.Ble(r1,r2,l1)
+      | Gt ->  Mips.Bgt(r1,r2,l1)
+      | Gte -> Mips.Bge(r1,r2,l1)
       )
+    in
+    (match (o1, o2) with
+    | Reg(r1), Reg(r2) -> [(get_branch_inst r1 r2); Mips.J(l2)]
+    | Reg(r), Int(i) -> [Mips.Li(Mips.R3, (Int32.of_int i));(get_branch_inst r Mips.R3);Mips.J(l2) ]
+    | Int(i), Reg(r) -> [Mips.Li(Mips.R3, (Int32.of_int i));(get_branch_inst Mips.R3 r);Mips.J(l2)]
+    | Int(i1), Int(i2) ->
+      let calc =
+              (* we can optimize this! *)
+        (match co1 with 
+        | Eq -> if i1 = i2 then Mips.J(l1) else Mips.J(l2)
+        | Neq ->if i1 <>i2 then Mips.J(l1) else Mips.J(l2)
+        | Lt -> if i1 < i2 then Mips.J(l1) else Mips.J(l2)
+        | Lte ->if i1 <=i2 then Mips.J(l1) else Mips.J(l2)
+        | Gt -> if i1 > i2 then Mips.J(l1) else Mips.J(l2)
+        | Gte ->if i1 >=i2 then Mips.J(l1) else Mips.J(l2)
+        )
+      in [calc]
+    | _ -> raise IllegalCFG
+    )
   | Return -> [Mips.Jr Mips.R31]
 
 (* Finally, translate the output of reg_alloc to Mips instructions *)
