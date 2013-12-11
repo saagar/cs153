@@ -651,7 +651,7 @@ let reg_alloc (f : func) : func =
       let rec inc_helper node (lst : (operand*int) list) : (operand * int) list =
         match lst with
         | [] -> [(node,1)]
-        | (hd,c)::tl -> if hd = node then ((hd,c+1)::tl) else inc_helper node tl
+        | (hd,c)::tl -> if hd = node then ((hd,c+1)::tl) else (hd,c)::inc_helper node tl
       in
       count_map := inc_helper op !count_map
     in
@@ -663,16 +663,16 @@ let reg_alloc (f : func) : func =
     (* go through function and increment all vars *)
     let rec op_counter funclist =
       match funclist with
-        | [] -> ()
-        | hd::tl ->
-            (match hd with
-              | Label _ | Jump _ | Return -> op_counter tl 
-              | Move (o1, o2) -> inc_counts o2; op_counter tl
-              | Arith (o1, o2, _, o3) -> inc_counts o2; inc_counts o3; op_counter tl
-              | Load (o1, o2, _) -> inc_counts o2; op_counter tl
-              | Store (o1, _, o2) -> inc_counts o1; inc_counts o2; op_counter tl
-              | Call op -> inc_counts op; op_counter tl
-              | If (o1, _, o2, _, _) -> inc_counts o1; inc_counts o2; op_counter tl)
+      | [] -> ()
+      | hd::tl ->
+        (match hd with
+        | Label _ | Jump _ | Return -> op_counter tl 
+        | Move (o1, o2) -> inc_counts o2; op_counter tl
+        | Arith (o1, o2, _, o3) -> inc_counts o2; inc_counts o3; op_counter tl
+        | Load (o1, o2, _) -> inc_counts o2; op_counter tl
+        | Store (o1, _, o2) -> inc_counts o1; inc_counts o2; op_counter tl
+        | Call op -> inc_counts op; op_counter tl
+        | If (o1, _, o2, _, _) -> inc_counts o1; inc_counts o2; op_counter tl)
     in
     op_counter deref_func;
     (* count_map[n] *)
@@ -693,8 +693,8 @@ let reg_alloc (f : func) : func =
         match nodelist with
         | [] -> () (* didn't find anything better *)
         | hd::tl -> 
-            let ratio = (float_of_int (retrieve_degree hd)) /. (float_of_int (retrieve_countmap hd)) in
-            (if ratio > !best_ratio then best_node := hd; best_ratio := ratio);
+          let ratio = (float_of_int (retrieve_degree hd)) /. (float_of_int (retrieve_countmap hd)) in
+          (if ratio > !best_ratio then best_node := hd; best_ratio := ratio);
       in
       find_helper nodes
     in
