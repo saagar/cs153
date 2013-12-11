@@ -1,0 +1,15 @@
+f(x, y, z, v, w) {
+     return x + y + z + v + w;
+}
+
+main() {
+  let a = 5;
+  let k = 2;
+  let x = k;
+  {
+	a = f(x, k, 8, 10, 12);
+  	{
+		let b = x;
+
+  return b;}}
+}
