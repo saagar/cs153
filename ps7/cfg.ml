@@ -958,7 +958,35 @@ let cfgi2mipsi (i:inst) : Mips.inst list =
   | Store(o1,i,o2) -> [Mips.Sw((to_mips_reg o2),(to_mips_reg o1),(Int32.of_int i))]
   | Call foo -> [Mips.Jal (to_mips_label foo)]
   | Jump lbl -> [Mips.J lbl]
-  | If(o1,co1,o2,l1,l2) -> raise Implement_Me
+  | If(o1,co1,o2,l1,l2) -> 
+      let get_branch_inst (r1 : Mips.reg) (r2 : Mips.reg) : Mips.inst =
+        (match co1 with
+          | Eq ->  Mips.Beq(r1,r2,l1)
+          | Neq -> Mips.Bne(r1,r2,l1)
+          | Lt ->  Mips.Blt(r1,r2,l1)
+          | Lte -> Mips.Ble(r1,r2,l1)
+          | Gt ->  Mips.Bgt(r1,r2,l1)
+          | Gte -> Mips.Bge(r1,r2,l1)
+        )
+      in
+      (match (o1, o2) with
+        | Reg(r1), Reg(r2) -> []
+        | Reg(r), Int(i) -> []
+        | Int(i), Reg(r) -> []
+        | Int(i1), Int(i2) ->
+            let calc =
+            (* we can optimize this! *)
+              (match co1 with 
+                | Eq -> if i1 = i2 then Mips.J(l1) else Mips.J(l2)
+                | Neq ->if i1 <>i2 then Mips.J(l1) else Mips.J(l2)
+                | Lt -> if i1 < i2 then Mips.J(l1) else Mips.J(l2)
+                | Lte ->if i1 <=i2 then Mips.J(l1) else Mips.J(l2)
+                | Gt -> if i1 > i2 then Mips.J(l1) else Mips.J(l2)
+                | Gte ->if i1 >=i2 then Mips.J(l1) else Mips.J(l2)
+              )
+            in [calc]
+        | _ -> raise IllegalCFG
+      )
   | Return -> [Mips.Jr Mips.R31]
 
 (* Finally, translate the output of reg_alloc to Mips instructions *)
