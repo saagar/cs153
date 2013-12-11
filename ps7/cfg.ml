@@ -1000,6 +1000,10 @@ let reg_alloc (f : func) : func =
     | hd::tl -> (color_insts hd)::(color_blocks tl) in
   color_blocks to_color_func
 
+(* mangle function names to prevent conflicts with mips instructions *)
+(* but don't mangle internal labels like .L0 *)
+let mangle x = if x.[0] = '.' then x else "_sdej_" ^ x
+
 (* helpers for instruction translation *)
 let to_mips_reg (op : operand) : Mips.reg =
   match op with
@@ -1008,7 +1012,7 @@ let to_mips_reg (op : operand) : Mips.reg =
 
 let to_mips_label (op : operand) : Mips.label =
   match op with
-  | Lab(a) -> ("_sdej_"^a)
+  | Lab(a) -> (mangle a)
   | _ -> raise FatalError
 
 let to_mips_op (op : operand) : Mips.operand =
@@ -1016,9 +1020,6 @@ let to_mips_op (op : operand) : Mips.operand =
   | Reg(r) -> Mips.Reg(r)
   | Int(i) -> Mips.Immed(Int32.of_int i)
   | _ -> raise FatalError
-
-(* mangle function names to prevent conflicts with mips instructions *)
-let mangle x = "_sdej_" ^ x
 
 (* translate a single CFG inst into one or more Mips insts *)
 let cfgi2mipsi (i:inst) : Mips.inst list =
