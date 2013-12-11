@@ -35,6 +35,10 @@ module TupleSet = Set.Make(struct
                               type t = operand * operand
                               let compare = compare
                             end)
+module CountSet = Set.Make(struct
+                              type t = operand * int
+                              let compare = compare
+                            end)
 
 (* Gen for instructions. Returns operand set containing all Gens required for
  * one instruction *)
@@ -630,9 +634,64 @@ let reg_alloc (f : func) : func =
     let _ = freeze_moves u in ()
   in
   (* SELECT SPILL *)
-  let select_spill () =
+  let select_spill (current_func : func ref) =
+    let deref_func = List.flatten !current_func in
+    let count_map : (operand * int) list ref = ref [] in 
+    (* look for op in list and increment; if its not there, push (node,1) *)
+    let increment_variable_list op =
+      let rec inc_helper node (lst : (operand*int) list) : (operand * int) list =
+        match lst with
+        | [] -> [(node,1)]
+        | (hd,c)::tl -> if hd = node then ((hd,c+1)::tl) else inc_helper node tl
+      in
+      count_map := inc_helper op !count_map
+    in
+    let inc_counts (op : operand) =
+      match op with
+      | Var(v) -> increment_variable_list op
+      | _ -> ()
+    in
+    (* go through function and increment all vars *)
+    let rec op_counter funclist =
+      match funclist with
+        | [] -> ()
+        | hd::tl ->
+            (match hd with
+              | Label _ | Jump _ | Return -> op_counter tl 
+              | Move (o1, o2) -> inc_counts o2; op_counter tl
+              | Arith (o1, o2, _, o3) -> inc_counts o2; inc_counts o3; op_counter tl
+              | Load (o1, o2, _) -> inc_counts o2; op_counter tl
+              | Store (o1, _, o2) -> inc_counts o1; inc_counts o2; op_counter tl
+              | Call op -> inc_counts op; op_counter tl
+              | If (o1, _, o2, _, _) -> inc_counts o1; inc_counts o2; op_counter tl)
+    in
+    op_counter deref_func;
+    (* count_map[n] *)
+    let retrieve_countmap op : int =
+      let rec retrieve_helper node (lst : (operand*int) list) : int =
+        match lst with
+        | [] -> raise FatalError
+        | (hd,c)::tl -> if hd = node then c else retrieve_helper node tl
+      in 
+      retrieve_helper op !count_map
+    in
+    (* for all nodes in spillWorklist, do degree[n]/count_map[n] *)
+    let spillList = OperandSet.elements !spillWorklist in
+    let best_node : operand ref = ref (List.hd spillList) in
+    let best_ratio : float ref = ref ((float_of_int (retrieve_degree !best_node)) /. (float_of_int (retrieve_countmap !best_node))) in
+    let find_best_node nodes =
+      let find_helper nodelist =
+        match nodelist with
+        | [] -> () (* didn't find anything better *)
+        | hd::tl -> 
+            let ratio = (float_of_int (retrieve_degree hd)) /. (float_of_int (retrieve_countmap hd)) in
+            (if ratio > !best_ratio then best_node := hd; best_ratio := ratio);
+      in
+      find_helper nodes
+    in
+    find_best_node spillList;
     (* TODO: need heuristic to pick! *)
-    let m = raise Implement_Me in
+    let m = !best_node in
     spillWorklist := OperandSet.remove m !spillWorklist;
     simplifyWorklist := OperandSet.add m !simplifyWorklist;
     freeze_moves m
@@ -890,7 +949,7 @@ let reg_alloc (f : func) : func =
       let _ = if OperandSet.is_empty !simplifyWorklist = false then simplify ()
         else if TupleSet.is_empty !worklistMoves = false then coalesce ()
         else if OperandSet.is_empty !freezeWorklist = false then freeze ()
-        else if OperandSet.is_empty !spillWorklist = false then select_spill ()
+        else if OperandSet.is_empty !spillWorklist = false then select_spill current_func
       in
       (if (((OperandSet.is_empty !simplifyWorklist) && 
 	       (TupleSet.is_empty !worklistMoves) &&
@@ -1003,12 +1062,41 @@ let compile_func (f:C.func) : Mips.inst list =
   let cfg = fn2blocks f in (* TODO: mangle function names? *)
   cfg_to_mips (reg_alloc cfg)
 
-let compile_prog (prog:C.func list) : Mips.inst list =
-  raise Implement_Me
+type result = { code : Mips.inst list;
+                data : Mips.label list }
 
-let result2string (res:Mips.inst list) : string =
-  raise Implement_Me
+let compile_prog (prog:C.func list) : result (*Mips.inst list*) =
+  let rec compile_code (p:C.func list) : Mips.inst list =
+    match p with
+    | [] -> []
+    | hd::tl ->
+        compile_func hd @ compile_code tl
+  in
+  {code=(Mips.Label "main" :: (Mips.J "main") :: compile_code prog); data=[] }
 
+let result2string (res : result) : string =
+  let code = res.code in
+  let data = res.data in
+  let strs = List.map (fun x -> (Mips.inst2string x) ^ "\n") code in
+  let vaR8decl x = x ^ ":\t.word 0\n" in
+  let readfile f =
+    let stream = open_in f in
+    let size = in_channel_length stream in
+    let text = String.create size in
+    let _ = really_input stream text 0 size in
+    let _ = close_in stream in
+    text in
+  let debugcode = readfile "print.asm" in
+  "\t.text\n" ^
+  "\t.align\t2\n" ^
+  "\t.globl main\n" ^
+  (String.concat "" strs) ^
+  "\n\n" ^
+  "\t.data\n" ^
+  "\t.align 0\n"^
+  (String.concat "" (List.map vaR8decl data)) ^
+  "\n" ^
+  debugcode
 
 (*******************************************************************)
 (* Command-Line Interface for printing CFG. You probably will not 
