@@ -1024,11 +1024,13 @@ let mangle x = "_sdej_" ^ x
 let cfgi2mipsi (i:inst) : Mips.inst list =
   match i with
     Label lbl -> [Mips.Label (mangle lbl)]
-  | Move(o1,o2) -> 
-      (match (o1,o2) with
-      | Reg(r1), Reg(r2) -> [Mips.Add(r1,r2,Mips.Immed(0l))]
-      | Reg(r1), Int(i) -> [Mips.Li(r1,(Int32.of_int i))]
-      | _ -> raise IllegalCFG) 
+  | Move(o1,o2) ->
+      (if o1 <> o2 then
+        (match (o1,o2) with
+        | Reg(r1), Reg(r2) -> [Mips.Add(r1,r2,Mips.Immed(0l))]
+        | Reg(r1), Int(i) -> [Mips.Li(r1,(Int32.of_int i))]
+        | _ -> raise IllegalCFG) 
+      else []);
   | Arith(o1,o2,a,o3) -> 
       let get_operation_inst (r1 : Mips.reg) (r2 : Mips.reg) (dest : Mips.reg) : Mips.inst =
         match a with
