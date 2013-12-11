@@ -970,9 +970,9 @@ let cfgi2mipsi (i:inst) : Mips.inst list =
         )
       in
       (match (o1, o2) with
-        | Reg(r1), Reg(r2) -> []
-        | Reg(r), Int(i) -> []
-        | Int(i), Reg(r) -> []
+      | Reg(r1), Reg(r2) -> [(get_branch_inst r1 r2); Mips.J(l2)]
+      | Reg(r), Int(i) -> [Mips.Li(Mips.R3, (Int32.of_int i));(get_branch_inst r Mips.R3);Mips.J(l2) ]
+      | Int(i), Reg(r) -> [Mips.Li(Mips.R3, (Int32.of_int i));(get_branch_inst Mips.R3 r);Mips.J(l2)]
         | Int(i1), Int(i2) ->
             let calc =
             (* we can optimize this! *)
