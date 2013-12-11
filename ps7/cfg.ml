@@ -623,15 +623,16 @@ let reg_alloc (f : func) : func =
   in
   let freeze_moves (node : operand) =
     let rec freeze_moves_helper moves =
-      let m = TupleSet.choose moves in
-      activeMoves := TupleSet.remove m !activeMoves;
-      frozenMoves := TupleSet.add m !frozenMoves;
-      let (x, y) = m in
-      let v = if (get_alias y) = (get_alias node) then get_alias x else get_alias y in
-      (if (TupleSet.is_empty (node_moves v)) && (retrieve_degree v < k_reg) then
-	  (freezeWorklist := OperandSet.remove v !freezeWorklist;
-	   simplifyWorklist := OperandSet.add v !simplifyWorklist));
-      freeze_moves_helper (TupleSet.remove m moves)
+      if TupleSet.is_empty moves = false then
+	let m = TupleSet.choose moves in
+	activeMoves := TupleSet.remove m !activeMoves;
+	frozenMoves := TupleSet.add m !frozenMoves;
+	let (x, y) = m in
+	let v = if (get_alias y) = (get_alias node) then get_alias x else get_alias y in
+	(if (TupleSet.is_empty (node_moves v)) && (retrieve_degree v < k_reg) then
+	    (freezeWorklist := OperandSet.remove v !freezeWorklist;
+	     simplifyWorklist := OperandSet.add v !simplifyWorklist));
+	freeze_moves_helper (TupleSet.remove m moves)
     in
     freeze_moves_helper (node_moves node)
   in
@@ -644,7 +645,6 @@ let reg_alloc (f : func) : func =
   in
   (* SELECT SPILL *)
   let select_spill (current_func : func) =
-    let deref_func = List.flatten current_func in
     let count_map : (operand * int) list ref = ref [] in 
     (* look for op in list and increment; if its not there, push (node,1) *)
     let increment_variable_list op =
@@ -660,26 +660,26 @@ let reg_alloc (f : func) : func =
       | Var(v) -> increment_variable_list op
       | _ -> ()
     in
-    (* go through function and increment all vars *)
-    let rec op_counter funclist =
-      match funclist with
+    (* go through function and increment all vars - both defs (which produce stores) and uses (which produce loads) *)
+    let rec op_counter insts =
+      match insts with
       | [] -> ()
       | hd::tl ->
         (match hd with
         | Label _ | Jump _ | Return -> op_counter tl 
-        | Move (o1, o2) -> inc_counts o2; op_counter tl
-        | Arith (o1, o2, _, o3) -> inc_counts o2; inc_counts o3; op_counter tl
-        | Load (o1, o2, _) -> inc_counts o2; op_counter tl
+        | Move (o1, o2) -> inc_counts o1; inc_counts o2; op_counter tl
+        | Arith (o1, o2, _, o3) -> inc_counts o1; inc_counts o2; inc_counts o3; op_counter tl
+        | Load (o1, o2, _) -> inc_counts o1; inc_counts o2; op_counter tl
         | Store (o1, _, o2) -> inc_counts o1; inc_counts o2; op_counter tl
         | Call op -> inc_counts op; op_counter tl
         | If (o1, _, o2, _, _) -> inc_counts o1; inc_counts o2; op_counter tl)
     in
-    op_counter deref_func;
+    op_counter (List.flatten current_func);
     (* count_map[n] *)
     let retrieve_countmap op : int =
       let rec retrieve_helper node (lst : (operand*int) list) : int =
         match lst with
-        | [] -> raise FatalError
+        | [] -> 1 (* should never happen *)
         | (hd,c)::tl -> if hd = node then c else retrieve_helper node tl
       in 
       retrieve_helper op !count_map
@@ -689,17 +689,17 @@ let reg_alloc (f : func) : func =
     let best_node : operand ref = ref (List.hd spillList) in
     let best_ratio : float ref = ref ((float_of_int (retrieve_degree !best_node)) /. (float_of_int (retrieve_countmap !best_node))) in
     let find_best_node nodes =
-      let find_helper nodelist =
+      let rec find_helper nodelist =
         match nodelist with
         | [] -> () (* didn't find anything better *)
         | hd::tl -> 
           let ratio = (float_of_int (retrieve_degree hd)) /. (float_of_int (retrieve_countmap hd)) in
-          (if ratio > !best_ratio then best_node := hd; best_ratio := ratio);
+          (if ratio > !best_ratio then (best_node := hd; best_ratio := ratio));
+	  find_helper tl
       in
       find_helper nodes
     in
     find_best_node spillList;
-    (* TODO: need heuristic to pick! *)
     let m = !best_node in
     spillWorklist := OperandSet.remove m !spillWorklist;
     simplifyWorklist := OperandSet.add m !simplifyWorklist;
