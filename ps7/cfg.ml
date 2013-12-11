@@ -1073,21 +1073,21 @@ let cfgi2mipsi (i:inst) : Mips.inst list =
   | If(o1,co1,o2,l1,l2) -> 
     let get_branch_inst (r1 : Mips.reg) (r2 : Mips.reg) : Mips.inst =
       (match co1 with
-      | Eq ->  Mips.Beq(r1,r2,l1)
-      | Neq -> Mips.Bne(r1,r2,l1)
-      | Lt ->  Mips.Blt(r1,r2,l1)
-      | Lte -> Mips.Ble(r1,r2,l1)
-      | Gt ->  Mips.Bgt(r1,r2,l1)
-      | Gte -> Mips.Bge(r1,r2,l1)
+      | Eq ->  Mips.Beq(r1,r2,mangle l1)
+      | Neq -> Mips.Bne(r1,r2,mangle l1)
+      | Lt ->  Mips.Blt(r1,r2,mangle l1)
+      | Lte -> Mips.Ble(r1,r2,mangle l1)
+      | Gt ->  Mips.Bgt(r1,r2,mangle l1)
+      | Gte -> Mips.Bge(r1,r2,mangle l1)
       )
     in
     (match (o1, o2) with
-    | Reg(r1), Reg(r2) -> [(get_branch_inst r1 r2); Mips.J(l2)]
-    | Reg(r), Int(i) -> [Mips.Li(Mips.R3, (Int32.of_int i));(get_branch_inst r Mips.R3);Mips.J(l2) ]
-    | Int(i), Reg(r) -> [Mips.Li(Mips.R3, (Int32.of_int i));(get_branch_inst Mips.R3 r);Mips.J(l2)]
+    | Reg(r1), Reg(r2) -> [(get_branch_inst r1 r2); Mips.J(mangle l2)]
+    | Reg(r), Int(i) -> [Mips.Li(Mips.R3, (Int32.of_int i));(get_branch_inst r Mips.R3);Mips.J(mangle l2)]
+    | Int(i), Reg(r) -> [Mips.Li(Mips.R3, (Int32.of_int i));(get_branch_inst Mips.R3 r);Mips.J(mangle l2)]
     | Int(i1), Int(i2) ->
       let calc =
-              (* we can optimize this! *)
+        (* we can optimize this! *)
         (match co1 with 
         | Eq -> if i1 = i2 then Mips.J(l1) else Mips.J(l2)
         | Neq ->if i1 <>i2 then Mips.J(l1) else Mips.J(l2)
