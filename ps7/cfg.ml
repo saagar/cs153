@@ -338,6 +338,7 @@ let reg_alloc (f : func) : func =
       Reg _ -> true
     | _ -> false in
   if List.length reserved_regs + List.length usable_regs <> 32 then raise FatalError;
+  (* operand sets for all of the node types. *)
   let precolored = ref OperandSet.empty in
   let initial = ref OperandSet.empty in
   let simplifyWorklist = ref OperandSet.empty in
@@ -346,8 +347,10 @@ let reg_alloc (f : func) : func =
   let spilledNodes = ref OperandSet.empty in
   let coalescedNodes = ref OperandSet.empty in
   let coloredNodes = ref OperandSet.empty in
+  (* select stack for pushing and pulling nodes in order from graph *)
   let selectStack : operand list ref = ref [] in
 
+  (* tuplesets for all of the move types *)
   let coalescedMoves = ref TupleSet.empty in
   let constrainedMoves = ref TupleSet.empty in
   let frozenMoves = ref TupleSet.empty in
@@ -456,6 +459,7 @@ let reg_alloc (f : func) : func =
   in
   (* AddEdge(u,v) *)
   let add_edge u v =
+    (* if the u and v are the same or the edge existed already, ignore *)
     if (u <> v) && ((TupleSet.mem (u,v) !adjSet) = false) 
     then
       (adjSet := TupleSet.add (u,v) !adjSet;
@@ -543,7 +547,7 @@ let reg_alloc (f : func) : func =
   let rec get_alias node : operand = 
     if OperandSet.mem node !coalescedNodes then (get_alias (retrieve_alias node)) else node
   in
-  (* alias[u] = v *)
+  (* alias[u] = v - this sets a new list by creating a new one *)
   let set_alias u v =
     let rec new_alias_list u_node v_rename aliaslist : (operand * operand) list =
       match aliaslist with
@@ -553,7 +557,7 @@ let reg_alloc (f : func) : func =
     let updated_aliases = new_alias_list u v !alias in
     alias := updated_aliases;
   in
-  (* AddWorkList(u) *)
+  (* AddWorkList(u) - adds a node to the simplify worklist *)
   let add_worklist node = 
     if (OperandSet.mem node !precolored = false && (move_related node) = false && (retrieve_degree node) < k_reg) then
       (freezeWorklist := OperandSet.remove node !freezeWorklist;
@@ -567,6 +571,7 @@ let reg_alloc (f : func) : func =
     let k = OperandSet.fold (fun x a -> if retrieve_degree x >= k_reg then a + 1 else a) nodes 0 in
     k < k_reg
   in
+  (* combines v into u for node coalescing *)
   let combine u v =
     (if OperandSet.mem v !freezeWorklist then
 	freezeWorklist := OperandSet.remove v !freezeWorklist
@@ -1003,7 +1008,7 @@ let to_mips_reg (op : operand) : Mips.reg =
 
 let to_mips_label (op : operand) : Mips.label =
   match op with
-  | Lab(a) -> a
+  | Lab(a) -> ("_sdej_"^a)
   | _ -> raise FatalError
 
 let to_mips_op (op : operand) : Mips.operand =
@@ -1015,7 +1020,7 @@ let to_mips_op (op : operand) : Mips.operand =
 (* translate a single CFG inst into one or more Mips insts *)
 let cfgi2mipsi (i:inst) : Mips.inst list =
   match i with
-    Label lbl -> [Mips.Label lbl]
+    Label lbl -> [Mips.Label ("_sdej_"^lbl)]
   | Move(o1,o2) -> 
       (match (o1,o2) with
       | Reg(r1), Reg(r2) -> [Mips.Add(r1,r2,Mips.Immed(0l))]
@@ -1047,7 +1052,7 @@ let cfgi2mipsi (i:inst) : Mips.inst list =
   | Load(o1,o2,i) -> [Mips.Lw((to_mips_reg o1),(to_mips_reg o2),(Int32.of_int i))]
   | Store(o1,i,o2) -> [Mips.Sw((to_mips_reg o2),(to_mips_reg o1),(Int32.of_int i))]
   | Call foo -> [Mips.Jal (to_mips_label foo)]
-  | Jump lbl -> [Mips.J lbl]
+  | Jump lbl -> [Mips.J ("_sdej_"^lbl)]
   | If(o1,co1,o2,l1,l2) -> 
       let get_branch_inst (r1 : Mips.reg) (r2 : Mips.reg) : Mips.inst =
         (match co1 with
@@ -1103,20 +1108,13 @@ let compile_prog (prog:C.func list) : result (*Mips.inst list*) =
     | hd::tl ->
         compile_func hd @ compile_code tl
   in
-  {code=(Mips.Label "main" :: (Mips.J "main") :: compile_code prog); data=[] }
+  {code=(Mips.Label "main" :: (Mips.J "_sdej_main") :: compile_code prog); data=[] }
 
 let result2string (res : result) : string =
   let code = res.code in
   let data = res.data in
   let strs = List.map (fun x -> (Mips.inst2string x) ^ "\n") code in
   let vaR8decl x = x ^ ":\t.word 0\n" in
-  let readfile f =
-    let stream = open_in f in
-    let size = in_channel_length stream in
-    let text = String.create size in
-    let _ = really_input stream text 0 size in
-    let _ = close_in stream in
-    text in
   "\t.text\n" ^
   "\t.align\t2\n" ^
   "\t.globl main\n" ^
