@@ -14,7 +14,7 @@ main() {
   let n = 14;
   let p = m + k + n;
   let x = a + b + c + d + e + f+ g+ h+ i + k;
-  let y = m + n + p;
+  let y = m + n + k;
   let z = 1337;
-  return a;
+  return 38;
 }
