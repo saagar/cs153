@@ -3,6 +3,8 @@ open Cfg_ast
 module C = Cish_ast
 exception Implement_Me
 exception FatalError
+exception NotFound
+exception IllegalCFG
 
 (*******************************************************************)
 (* PS7 TODO:  interference graph construction *)
@@ -848,6 +850,23 @@ let reg_alloc (f : func) : func =
   in
   main_loop ();
   !current_func
+
+(* helpers for instruction translation *)
+let to_mips_reg (op : operand) : Mips.reg =
+  match op with
+  | Reg(r) -> r
+  | _ -> raise NotFound 
+
+let to_mips_label (op : operand) : Mips.label =
+  match op with
+  | Lab(a) -> a
+  | _ -> raise NotFound
+
+let to_mips_op (op : operand) : Mips.operand =
+  match op with
+  | Reg(r) -> Mips.Reg(r)
+  | Int(i) -> Mips.Immed(Int32.of_int i)
+  | _ -> raise NotFound
 
 (* translate a single CFG inst into one or more Mips insts *)
 let cfgi2mipsi (i:inst) : Mips.inst list =
