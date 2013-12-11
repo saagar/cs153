@@ -14,9 +14,7 @@ main() {
   {
     a = f(x, k);
     {
-      let b = x;
-
-      return b;
+      return a;
     }
   }
 }
