@@ -324,9 +324,10 @@ let reg_alloc (f : func) : func =
 
   (* ignore 0, 1, 26, 27 - kernel
    * ignore 29, 30, 31 - sp, fp, ra *)
-  let machine_regs : operand list = [Reg Mips.R0; Reg Mips.R1; Reg Mips.R26; 
+  (* reserve R3 for pseudo-ops involving immediates *)
+  let machine_regs : operand list = [Reg Mips.R0; Reg Mips.R1; Reg Mips.R3; Reg Mips.R26; 
                                     Reg Mips.R27; Reg Mips.R29; Reg Mips.R30; Reg Mips.R31] in
-  let usable_regs : operand list = [Reg Mips.R2; Reg Mips.R3; Reg Mips.R4; Reg Mips.R5;
+  let usable_regs : operand list = [Reg Mips.R2; Reg Mips.R4; Reg Mips.R5;
                                     Reg Mips.R6; Reg Mips.R7; Reg Mips.R8; Reg Mips.R9; Reg Mips.R10;
                                     Reg Mips.R11; Reg Mips.R12; Reg Mips.R13; Reg Mips.R14; Reg Mips.R15;
                                     Reg Mips.R16; Reg Mips.R17; Reg Mips.R18; Reg Mips.R19; Reg Mips.R20;
@@ -389,7 +390,7 @@ let reg_alloc (f : func) : func =
   let retrieve_adjlist node : OperandSet.t=
     let rec adjlist_helper n adj =
       match adj with
-      | [] -> raise FatalError
+      | [] -> OperandSet.empty
       | (op,set)::tl -> if op = n then set else adjlist_helper n tl
     in
     adjlist_helper node !adjList
@@ -407,7 +408,7 @@ let reg_alloc (f : func) : func =
   let retrieve_movelist node : TupleSet.t =
     let rec movelist_helper n moves =
       match moves with
-	[] -> raise FatalError
+	[] -> TupleSet.empty (* this case is hit during setup_initial's add_move_to_movelist helper *)
       | (op,set)::tl -> if op = n then set else movelist_helper n tl
     in
     movelist_helper node !moveList
@@ -437,7 +438,7 @@ let reg_alloc (f : func) : func =
   let retrieve_degree node : int =
     let rec retrieve_helper n nodelist : int =
       match nodelist with
-      | [] -> raise FatalError
+      | [] -> 0 (* if a node had degree 0, we never put it into the list so the base case will be hit *)
       | (hd,count)::tl -> if hd = n then count else retrieve_helper n tl
     in
     retrieve_helper node !degree
@@ -871,7 +872,6 @@ let reg_alloc (f : func) : func =
     coalescedNodes := OperandSet.empty;
     coloredNodes := OperandSet.empty;
     selectStack := [];
-    make_worklist ();
     adjSet := TupleSet.empty;
     adjList := [];
     degree := [];
@@ -880,7 +880,8 @@ let reg_alloc (f : func) : func =
     color := [];
     List.iter (fun (u,v) -> add_edge u v) interfere_edges;
     OperandSet.iter (fun reg -> set_color reg reg) !precolored;
-    List.iter add_move_to_movelists graph.InterfereGraph.move_edges
+    List.iter add_move_to_movelists graph.InterfereGraph.move_edges;
+    make_worklist ()
   in
   let rec main_loop () =
     (* Appel procedures LivenessAnalysis, Build, MakeWorklist *)
@@ -1019,11 +1020,12 @@ let result2string (res:Mips.inst list) : string =
 *)
 
 let usage_string = "usage: " ^ Sys.argv.(0) ^ " [option] [file-to-parse]\nfor option, choose exactly one of:" ^
-  " -pig -pm -pcfg -pigd\n" ^
+  " -pig -pm -pcfg -pigd -pcolor\n" ^
   "-pig => print interference graph\n" ^
   "-pm => print compiled MIPS\n" ^
   "-pcfg => print control flow graph representation\n" ^
-  "-pigd => print interference graph with live-in sets next to instructions as debug info\n"
+  "-pigd => print interference graph with live-in sets next to instructions as debug info\n" ^
+  "-pcolor => print final control flow graph representation after register allocation\n"
 
 let parse_file() =
   let argv = Sys.argv in
@@ -1045,10 +1047,14 @@ let print_interference_graph (():unit) (f : C.func) : unit =
 let print_cfg () (f:C.func) : unit =
   Printf.printf "%s\n%s\n\n" (C.fn2string f) (fun2string (fn2blocks f))
 
+let print_colored_cfg () (f:C.func) : unit =
+  Printf.printf "%s\n%s\n\n" (C.fn2string f) (fun2string (reg_alloc (fn2blocks f)))
+
 let _ =
   let cish_prog, option = parse_file() in
   if option = "-pig" then List.fold_left print_interference_graph () cish_prog
   else if option = "-pm" then print_string (result2string (compile_prog cish_prog))
   else if option = "-pcfg" then List.fold_left print_cfg () cish_prog
   else if option = "-pigd" then (pig_debug := true; List.fold_left print_interference_graph () cish_prog)
+  else if option = "-pcolor" then List.fold_left print_colored_cfg () cish_prog
   else (prerr_string usage_string; exit 1)
