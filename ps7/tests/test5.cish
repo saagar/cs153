@@ -1,0 +1,20 @@
+main() {
+  let a = 1;
+  let b = 2;
+  let c = b;
+  let d = 4;
+  let e = 5;
+  let f = d;
+  let g = 7;
+  let h = 8;
+  let i = h + a;
+  let j = b + d;
+  let k = 11;
+  let m = 13;
+  let n = 14;
+  let p = m + k + n;
+  let x = a + b + c + d + e + f+ g+ h+ i + k;
+  let y = m + n + p;
+  let z = 1337;
+  return a;
+}
