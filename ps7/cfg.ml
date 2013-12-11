@@ -1112,7 +1112,7 @@ let cfg_to_mips (f : func) : Mips.inst list =
   cfg2mips_loop insts
 
 let compile_func (f:C.func) : Mips.inst list =
-  let cfg = fn2blocks f in (* TODO: mangle function names? *)
+  let cfg = fn2blocks f in
   cfg_to_mips (reg_alloc cfg)
 
 type result = { code : Mips.inst list;
@@ -1140,7 +1140,7 @@ let result2string (res : result) : string =
   "\t.data\n" ^
   "\t.align 0\n"^
   (String.concat "" (List.map vaR8decl data)) ^
-  "\n" 
+  "\n"
 
 (*******************************************************************)
 (* Command-Line Interface for printing CFG. You probably will not 
