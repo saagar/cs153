@@ -1114,7 +1114,6 @@ let result2string (res : result) : string =
     let _ = really_input stream text 0 size in
     let _ = close_in stream in
     text in
-  let debugcode = readfile "print.asm" in
   "\t.text\n" ^
   "\t.align\t2\n" ^
   "\t.globl main\n" ^
@@ -1123,8 +1122,7 @@ let result2string (res : result) : string =
   "\t.data\n" ^
   "\t.align 0\n"^
   (String.concat "" (List.map vaR8decl data)) ^
-  "\n" ^
-  debugcode
+  "\n" 
 
 (*******************************************************************)
 (* Command-Line Interface for printing CFG. You probably will not 
