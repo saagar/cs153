@@ -282,7 +282,7 @@ let fn2blocks (C.Fn {C.name=name;C.args=args;C.body=body;C.pos=pos}) : block lis
     ) in
     
     let callee_regs = 
-        [fp;ra] @ (List.map (fun x -> Reg x) 
+      (List.map (fun x -> Reg x) 
                       [Mips.R16;Mips.R17;Mips.R18;Mips.R19;Mips.R20;
                        Mips.R21;Mips.R22;Mips.R23]) in
 
@@ -315,7 +315,7 @@ let fn2blocks (C.Fn {C.name=name;C.args=args;C.body=body;C.pos=pos}) : block lis
                     | 1 -> emit_inst (Move(t,Reg Mips.R5))
                     | 2 -> emit_inst (Move(t,Reg Mips.R6))
                     | 3 -> emit_inst (Move(t,Reg Mips.R7))
-                    | _ -> emit_inst (Load(t,sp,i*4))) in
+                    | _ -> emit_inst (Load(t,fp,i*4+4))) in
             load_args new_env (xs,i+1) in
 
     (* break the list of instructions into basic blocks *)
@@ -346,9 +346,17 @@ let fn2blocks (C.Fn {C.name=name;C.args=args;C.body=body;C.pos=pos}) : block lis
     (* emit prologue -- later, we'll have to add code to adjust the
      * stack pointer to set aside space to save any spilled values *)
     let _ = emit_inst (Label name) in
-        (* generate temps for all of the callee-saves registers *)
+    (* save fp and ra *)
+    let _ = emit_inst (Arith (sp, sp, Minus, Int 8)) in
+    let _ = emit_inst (Store (sp, 0, ra)) in
+    let _ = emit_inst (Store (sp, 4, fp)) in
+    (* set fp *)
+    let _ = emit_inst (Arith (fp, sp, Plus, Int 4)) in
+    (* allocate for spilled variables (currently 0) *)
+    let _ = emit_inst (Arith (sp, sp, Minus, Int 0)) in
+    (* generate temps for all of the callee-saves registers *)
     let callee_temps = save_callee_regs() in
-        (* load any arguments into temps *)
+    (* load any arguments into temps *)
     let env = load_args empty_env (args,0) in
     (* generate the body of the function *)
     let _ = emit_stmt env body in
@@ -359,6 +367,12 @@ let fn2blocks (C.Fn {C.name=name;C.args=args;C.body=body;C.pos=pos}) : block lis
     let _ = emit_inst (Label epilogue) in
     (* restore callee-saves registers *)
     let _ = restore_callee_regs callee_temps in
+    (* deallocate space where spilled variables went (currently 0) *)
+    let _ = emit_inst (Arith (sp, sp, Plus, Int 0)) in
+    (* restore ra and fp *)
+    let _ = emit_inst (Load (ra, fp, 0-4)) in
+    let _ = emit_inst (Load (fp, fp, 0)) in
+    let _ = emit_inst (Arith (sp, sp, Plus, Int 8)) in
     (* return from function *)
     let _ = emit_inst Return in
     (* finally, break instructions into basic blocks *)

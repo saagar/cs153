@@ -688,7 +688,18 @@ let reg_alloc (f : func) : func =
     in
     update_coalesced_colors (OperandSet.elements !coalescedNodes)
   in
-  let rewrite_program (spilled_nodes:OperandSet.t) = raise Implement_Me in
+  let rewrite_func () =
+    (*let spilled_nodes : OperandSet.t = !spilledNodes in
+    let old_func = !current_func in
+    let num_spilled = OperandSet.cardinal spilled_nodes in
+    let sp = Reg Mips.R29 in
+    let fp = Reg Mips.R30 in
+    let save_fp = [Arith (sp, sp, Minus, Int 4); Store (sp, 0, fp)] in
+    let alloc = Arith (sp, sp, Minus, Int (4 * num_spilled)) in
+    let dealloc = Arith (sp, sp, Plus, Int (4 * num_spilled)) in
+    let set_fp = Arith (fp, sp, Plus, Int (4 * (num_spilled - 1))) in
+    let assign_offsets *) raise Implement_Me
+  in
   let rec make_worklist () =
     (match (OperandSet.elements !initial) with
       [] -> ()
@@ -756,7 +767,7 @@ let reg_alloc (f : func) : func =
     in
     inner_loop ();
     assign_colors ();
-    if OperandSet.is_empty !spilledNodes = false then (rewrite_program !spilledNodes; main_loop ());
+    if OperandSet.is_empty !spilledNodes = false then (rewrite_func (); main_loop ());
     ()
   in
   main_loop ();
