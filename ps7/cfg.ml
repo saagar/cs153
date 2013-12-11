@@ -771,6 +771,18 @@ let reg_alloc (f : func) : func =
 	  (let t1 = Var (new_temp ()) in
 	   [Move (t1, op2); Store (fp, retrieve_var_offset op1, t1)])
 	else [i]
+      | Arith (op1, op2, arith_op, op3) ->
+	if OperandSet.mem op2 !spilledNodes then
+	  (let t1 = Var (new_temp ()) in
+	   (Load (t1, fp, retrieve_var_offset op2)) :: modify_inst_2 (Arith (op1, t1, arith_op, op3)))
+	else if OperandSet.mem op3 !spilledNodes then
+	  (let t1 = Var (new_temp ()) in
+	   (Load (t1, fp, retrieve_var_offset op3)) :: modify_inst_2 (Arith (op1, op2, arith_op, t1)))
+	else if OperandSet.mem op1 !spilledNodes then
+	  (let t1 = Var (new_temp ()) in
+	   [Arith (t1, op2, arith_op, op3); Store (fp, retrieve_var_offset op1, t1)])
+	else [i]
+
       | _ -> raise Implement_Me
     in
     let modify_inst (i:inst) : inst list =
