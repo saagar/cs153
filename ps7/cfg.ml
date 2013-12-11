@@ -35,10 +35,6 @@ module TupleSet = Set.Make(struct
                               type t = operand * operand
                               let compare = compare
                             end)
-module CountSet = Set.Make(struct
-                              type t = operand * int
-                              let compare = compare
-                            end)
 
 (* Gen for instructions. Returns operand set containing all Gens required for
  * one instruction *)
