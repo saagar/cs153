@@ -639,8 +639,8 @@ let reg_alloc (f : func) : func =
     let _ = freeze_moves u in ()
   in
   (* SELECT SPILL *)
-  let select_spill (current_func : func ref) =
-    let deref_func = List.flatten !current_func in
+  let select_spill (current_func : func) =
+    let deref_func = List.flatten current_func in
     let count_map : (operand * int) list ref = ref [] in 
     (* look for op in list and increment; if its not there, push (node,1) *)
     let increment_variable_list op =
@@ -954,7 +954,7 @@ let reg_alloc (f : func) : func =
       let _ = if OperandSet.is_empty !simplifyWorklist = false then simplify ()
         else if TupleSet.is_empty !worklistMoves = false then coalesce ()
         else if OperandSet.is_empty !freezeWorklist = false then freeze ()
-        else if OperandSet.is_empty !spillWorklist = false then select_spill current_func
+        else if OperandSet.is_empty !spillWorklist = false then select_spill !current_func
       in
       (if (((OperandSet.is_empty !simplifyWorklist) && 
 	       (TupleSet.is_empty !worklistMoves) &&
