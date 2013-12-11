@@ -782,8 +782,37 @@ let reg_alloc (f : func) : func =
 	  (let t1 = Var (new_temp ()) in
 	   [Arith (t1, op2, arith_op, op3); Store (fp, retrieve_var_offset op1, t1)])
 	else [i]
-
-      | _ -> raise Implement_Me
+      | Load (op1, op2, x) ->
+	if OperandSet.mem op2 !spilledNodes then
+	  (let t1 = Var (new_temp ()) in
+	   (Load (t1, fp, retrieve_var_offset op2)) :: modify_inst_2 (Load (op1, t1, x)))
+	else if OperandSet.mem op1 !spilledNodes then
+	  (let t1 = Var (new_temp ()) in
+	   [Load (t1, op2, x); Store (fp, retrieve_var_offset op1, t1)])
+	else [i]
+      | Store (op1, x, op2) ->
+	if OperandSet.mem op2 !spilledNodes then
+	  (let t1 = Var (new_temp ()) in
+	   (Load (t1, fp, retrieve_var_offset op2)) :: modify_inst_2 (Store (op1, x, t1)))
+	else if OperandSet.mem op1 !spilledNodes then
+	  (let t1 = Var (new_temp ()) in
+	   [Load (t1, fp, retrieve_var_offset op1); Store (t1, x, op2)])
+	else [i]
+      | Call op ->
+	if OperandSet.mem op !spilledNodes then
+	  (let t1 = Var (new_temp ()) in
+	   [Load (t1, fp, retrieve_var_offset op); Call t1])
+	else [i]
+      | Jump _ -> [i]
+      | If (op1, c, op2, l1, l2) ->
+	if OperandSet.mem op2 !spilledNodes then
+	  (let t1 = Var (new_temp ()) in
+	   (Load (t1, fp, retrieve_var_offset op2)) :: modify_inst_2 (If (op1, c, t1, l1, l2)))
+	else if OperandSet.mem op1 !spilledNodes then
+	  (let t1 = Var (new_temp ()) in
+	   [Load (t1, fp, retrieve_var_offset op1); If (t1, c, op2, l1, l2)])
+	else [i]
+      | Return -> [i]
     in
     let modify_inst (i:inst) : inst list =
       match i with
