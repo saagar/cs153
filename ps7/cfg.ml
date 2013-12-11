@@ -325,7 +325,7 @@ let reg_alloc (f : func) : func =
   (* ignore 0, 1, 26, 27 - kernel
    * ignore 29, 30, 31 - sp, fp, ra *)
   (* reserve R3 for pseudo-ops involving immediates *)
-  let machine_regs : operand list = [Reg Mips.R0; Reg Mips.R1; Reg Mips.R3; Reg Mips.R26; 
+  let reserved_regs : operand list = [Reg Mips.R0; Reg Mips.R1; Reg Mips.R3; Reg Mips.R26; 
                                     Reg Mips.R27; Reg Mips.R29; Reg Mips.R30; Reg Mips.R31] in
   let usable_regs : operand list = [Reg Mips.R2; Reg Mips.R4; Reg Mips.R5;
                                     Reg Mips.R6; Reg Mips.R7; Reg Mips.R8; Reg Mips.R9; Reg Mips.R10;
@@ -334,8 +334,11 @@ let reg_alloc (f : func) : func =
                                     Reg Mips.R21; Reg Mips.R22; Reg Mips.R23; Reg Mips.R24; Reg Mips.R25; Reg Mips.R28] in
   (* Number of registers, used to distinguish low- from high-degree nodes *)
   let k_reg = List.length usable_regs in
-  let is_machine_register oper = List.mem oper machine_regs in
-
+  let is_machine_register oper =
+    match oper with
+      Reg _ -> true
+    | _ -> false in
+  if List.length reserved_regs + List.length usable_regs <> 32 then raise FatalError;
   let precolored = ref OperandSet.empty in
   let initial = ref OperandSet.empty in
   let simplifyWorklist = ref OperandSet.empty in
@@ -591,11 +594,16 @@ let reg_alloc (f : func) : func =
     let (x, y) = m in
     let x_alias = get_alias x in
     let y_alias = get_alias y in
+    let is_r0 op =
+      match op with
+	Reg Mips.R0 -> true
+      | _ -> false
+    in
     let (u, v) = (if OperandSet.mem y_alias !precolored then (y_alias, x_alias) else (x_alias, y_alias)) in
     worklistMoves := TupleSet.remove m !worklistMoves;
     if (u = v)
     then (coalescedMoves := TupleSet.add m !coalescedMoves; add_worklist u)
-    else if ((OperandSet.mem v !precolored) || (TupleSet.mem (u, v) !adjSet))
+    else if ((OperandSet.mem v !precolored) || (TupleSet.mem (u, v) !adjSet) || is_r0 u || is_r0 v)
     then
       (constrainedMoves := TupleSet.add m !constrainedMoves;
        add_worklist u;
