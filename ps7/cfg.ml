@@ -1046,13 +1046,13 @@ let cfgi2mipsi (i:inst) : Mips.inst list =
     | Reg(r), Int(i) -> [Mips.Li(Mips.R3, (Int32.of_int i)); (get_operation_inst r Mips.R3 o1reg)]
     | Int(i), Reg(r) -> [Mips.Li(Mips.R3, (Int32.of_int i)); (get_operation_inst Mips.R3 r o1reg)]
     | Int(i1), Int(i2) -> 
-          (* we can optimize this! *)
+      (* we can optimize this! *)
       let calc =
         (match a with
         | Plus -> i1 + i2
         | Minus -> i1 - i2
         | Times -> i1 * i2
-        | Div -> i1 / i2)
+        | Div -> i1 / i2) (* don't worry about div by zero - if both operands are constants we might as well raise a compile time error if the second is zero *)
       in [Mips.Li((to_mips_reg o1), (Int32.of_int calc))]
     | _ -> raise IllegalCFG)
   | Load(o1,o2,i) ->
