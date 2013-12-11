@@ -375,6 +375,11 @@ let reg_alloc (f : func) : func =
   (* color[n] = c is a tuple of node to register color *)
   let color : (operand * operand) list ref = ref [] in
 
+  (* add to this when we do actual spills in RewriteProgram *)
+  let num_already_spilled = ref 0 in
+  (* maps a spilled temporary to an offset off the frame pointer. The first spilled temp will live at -8, the second at -12, etc. *)
+  let varToStackPos : (operand * int) list ref = ref [] in
+
   (* get color[n] *)
   let retrieve_color node : operand =
     let rec color_helper n colorlist =
@@ -638,6 +643,7 @@ let reg_alloc (f : func) : func =
     simplifyWorklist := OperandSet.add u !simplifyWorklist;
     let _ = freeze_moves u in ()
   in
+  (* SELECT SPILL *)
   let select_spill () =
     (* TODO: need heuristic to pick! *)
     let m = raise Implement_Me in
@@ -688,17 +694,87 @@ let reg_alloc (f : func) : func =
     in
     update_coalesced_colors (OperandSet.elements !coalescedNodes)
   in
+  (* for a spilled node, lookup its stack position (offset from fp) in varToStackPos *)
+  let retrieve_var_offset node : int =
+    let rec offset_helper n offsetlist =
+      match offsetlist with
+	[] -> raise FatalError
+      | (a,b)::tl -> if a = n then b else offset_helper n tl
+    in
+    offset_helper node !varToStackPos
+  in
+  (* assign a spilled node to the next available stack position *)
+  let set_var_offset node =
+    let rec set_helper n o offsetlist : (operand * int) list =
+      match offsetlist with
+	[] -> [(n, o)]
+      (* once we spill a node it should disappear from the code so shouldn't ever try to give it a new position on the stack *)
+      | (a,b)::tl -> if a = n then (raise FatalError) else (a,b)::(set_helper n o tl)
+    in
+    varToStackPos := set_helper node (!num_already_spilled * (-4) - 8) !varToStackPos;
+    num_already_spilled := !num_already_spilled + 1
+  in
+  (* REWRITE_PROGRAM *)
   let rewrite_func () =
-    (*let spilled_nodes : OperandSet.t = !spilledNodes in
-    let old_func = !current_func in
-    let num_spilled = OperandSet.cardinal spilled_nodes in
     let sp = Reg Mips.R29 in
     let fp = Reg Mips.R30 in
-    let save_fp = [Arith (sp, sp, Minus, Int 4); Store (sp, 0, fp)] in
-    let alloc = Arith (sp, sp, Minus, Int (4 * num_spilled)) in
-    let dealloc = Arith (sp, sp, Plus, Int (4 * num_spilled)) in
-    let set_fp = Arith (fp, sp, Plus, Int (4 * (num_spilled - 1))) in
-    let assign_offsets *) raise Implement_Me
+    let old_func = !current_func in
+    let rec assign_offsets (nodes:operand list) =
+      match nodes with
+	[] -> ()
+      | hd::tl ->
+	set_var_offset hd;
+	assign_offsets tl
+    in
+    assign_offsets (OperandSet.elements !spilledNodes);
+    (* allocate space by modifying two instructions emitted in cfg_ast.ml: the sixth one from the top (including the label) and the fifth one from the bottom *)
+    let modify_space_alloc () =
+      let first_block : block ref = ref [] in
+      let last_block : block ref = ref [] in
+      let other_blocks : block list ref = ref [] in
+      first_block := List.hd old_func;
+      let rec alloc_helper fblocks =
+	(match fblocks with
+	  [] -> raise FatalError
+	| [b] -> last_block := b
+	| hd::tl ->
+	  other_blocks := !other_blocks @ [hd];
+	  alloc_helper tl) in
+      alloc_helper (List.tl old_func);
+      let modify_first_block b =
+	let new_sixth_inst =
+	  match List.nth b 5 with
+	    Move (Reg Mips.R29, Reg Mips.R29) | Arith (Reg Mips.R29, Reg Mips.R29, Minus, Int _) -> Arith (sp, sp, Minus, Int (!num_already_spilled * 4))
+	  | _ -> raise FatalError (* couldn't find the allocating instruction *)
+	in
+	let rec modify_helper instructions n =
+	  match instructions with
+	    [] -> []
+	  | hd::tl -> if n = 5 then new_sixth_inst::tl else hd::(modify_helper tl (n+1))
+	in
+	modify_helper b 0
+      in
+      let new_first_block = modify_first_block !first_block in
+      let modify_last_block rev_b =
+	let new_fifth_inst =
+	  match List.nth rev_b 4 with
+	    Move (Reg Mips.R29, Reg Mips.R29) | Arith (Reg Mips.R29, Reg Mips.R29, Plus, Int _) -> Arith (sp, sp, Plus, Int (!num_already_spilled * 4))
+	  | _ -> raise FatalError (* couldn't find the deallocating instruction *)
+	in
+	let rec modify_helper instructions n =
+	  match instructions with
+	    [] -> []
+	  | hd::tl -> if n = 4 then new_fifth_inst::tl else hd::(modify_helper tl (n+1))
+	in
+	modify_helper rev_b 0
+      in
+      let new_last_block = List.rev (modify_last_block (List.rev !last_block)) in
+      current_func := new_first_block::(!other_blocks @ [new_last_block])
+    in
+    modify_space_alloc ();
+    let middle_func = !current_func in
+    
+    raise Implement_Me
   in
   let rec make_worklist () =
     (match (OperandSet.elements !initial) with
@@ -790,7 +866,7 @@ let cfg_to_mips (f : func) : Mips.inst list =
   cfg2mips_loop insts
 
 let compile_func (f:C.func) : Mips.inst list =
-  let cfg = fn2blocks f in
+  let cfg = fn2blocks f in (* TODO: mangle function names? *)
   cfg_to_mips (reg_alloc cfg)
 
 let compile_prog (prog:C.func list) : Mips.inst list =

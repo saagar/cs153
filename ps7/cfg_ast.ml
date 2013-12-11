@@ -345,6 +345,7 @@ let fn2blocks (C.Fn {C.name=name;C.args=args;C.body=body;C.pos=pos}) : block lis
         get_bs insts in
     (* emit prologue -- later, we'll have to add code to adjust the
      * stack pointer to set aside space to save any spilled values *)
+    (* EJ: changed it *)
     let _ = emit_inst (Label name) in
     (* save fp and ra *)
     let _ = emit_inst (Arith (sp, sp, Minus, Int 8)) in
@@ -352,8 +353,9 @@ let fn2blocks (C.Fn {C.name=name;C.args=args;C.body=body;C.pos=pos}) : block lis
     let _ = emit_inst (Store (sp, 4, fp)) in
     (* set fp *)
     let _ = emit_inst (Arith (fp, sp, Plus, Int 4)) in
-    (* allocate for spilled variables (currently 0) *)
-    let _ = emit_inst (Arith (sp, sp, Minus, Int 0)) in
+    (* allocate for spilled variables (currently 0, will be modified by rewrite_func) *)
+    (*let _ = emit_inst (Arith (sp, sp, Minus, Int 0)) in*)
+    let _ = emit_inst (Move (sp, sp)) in
     (* generate temps for all of the callee-saves registers *)
     let callee_temps = save_callee_regs() in
     (* load any arguments into temps *)
@@ -367,8 +369,9 @@ let fn2blocks (C.Fn {C.name=name;C.args=args;C.body=body;C.pos=pos}) : block lis
     let _ = emit_inst (Label epilogue) in
     (* restore callee-saves registers *)
     let _ = restore_callee_regs callee_temps in
-    (* deallocate space where spilled variables went (currently 0) *)
-    let _ = emit_inst (Arith (sp, sp, Plus, Int 0)) in
+    (* deallocate space where spilled variables went (currently 0, will be modified by rewrite_func) *)
+    (*let _ = emit_inst (Arith (sp, sp, Plus, Int 0)) in*)
+    let _ = emit_inst (Move (sp, sp)) in
     (* restore ra and fp *)
     let _ = emit_inst (Load (ra, fp, 0-4)) in
     let _ = emit_inst (Load (fp, fp, 0)) in
