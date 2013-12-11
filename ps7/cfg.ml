@@ -885,12 +885,16 @@ let to_mips_op (op : operand) : Mips.operand =
 let cfgi2mipsi (i:inst) : Mips.inst list =
   match i with
     Label lbl -> [Mips.Label lbl]
-  | Move(o1,o2) -> raise Implement_Me
+  | Move(o1,o2) -> 
+      (match (o1,o2) with
+      | Reg(r1), Reg(r2) -> [Mips.Add(r1,r2,Mips.Immed(0l))]
+      | Reg(r1), Int(i) -> [Mips.Li(r1,(Int32.of_int i))]
+      | _ -> raise IllegalCFG) 
   | Arith(o1,o2,a,o3) -> raise Implement_Me
-  | Load(o1,o2,i) -> raise Implement_Me
-  | Store(o1,i,o2) -> raise Implement_Me
-  | Call op -> raise Implement_Me
-  | Jump lbl -> raise Implement_Me
+  | Load(o1,o2,i) -> [Mips.Lw((to_mips_reg o1),(to_mips_reg o2),(Int32.of_int i))]
+  | Store(o1,i,o2) -> [Mips.Sw((to_mips_reg o2),(to_mips_reg o1),(Int32.of_int i))]
+  | Call foo -> [Mips.Jal (to_mips_label foo)]
+  | Jump lbl -> [Mips.J lbl]
   | If(o1,co1,o2,l1,l2) -> raise Implement_Me
   | Return -> [Mips.Jr Mips.R31]
 
