@@ -24,22 +24,6 @@ struct
     (let (vv1, vv2) = if v1 < v2 then (v1, v2) else (v2, v1) in
      if move_related then { nodes = g.nodes; move_edges = (vv1, vv2) :: g.move_edges; non_move_edges = g.non_move_edges }
      else { nodes = g.nodes; move_edges = g.move_edges; non_move_edges = (vv1, vv2) :: g.non_move_edges })
-(*
-  let rec count_node_in_edges edges node =
-    match edges with
-    | [] -> 0
-    | (a, b)::tl -> if (a = node) || (b = node) then (count_node_in_edges tl node) + 1
-                    else (count_node_in_edges tl node)
-
-  let get_nonmove_degree g v1 =
-    if (node_mem g v1) then count_node_in_edges g.non_move_edges v1
-    else 0
-
-  let get_move_degree g v1 =
-    if (node_mem g v1) then count_node_in_edges g.move_edges v1
-    else 0
-
-*)
 end
 
 module OperandSet = Set.Make(struct
@@ -775,8 +759,37 @@ let reg_alloc (f : func) : func =
     in
     modify_space_alloc ();
     let middle_func = !current_func in
-    
-    raise Implement_Me
+    (* replace defs and uses of each spilled node with a new temporary and insert stores/loads *)
+    let rec modify_inst_2 (i:inst) : inst list =
+      match i with
+	Label _ -> [i]
+      | Move (op1, op2) ->
+	if OperandSet.mem op2 !spilledNodes then
+	  (let t1 = Var (new_temp ()) in
+	   (Load (t1, fp, retrieve_var_offset op2)) :: modify_inst_2 (Move (op1, t1)))
+	else if OperandSet.mem op1 !spilledNodes then
+	  (let t1 = Var (new_temp ()) in
+	   [Move (t1, op2); Store (fp, retrieve_var_offset op1, t1)])
+	else [i]
+      | _ -> raise Implement_Me
+    in
+    let modify_inst (i:inst) : inst list =
+      match i with
+	Move (Var x, Var y) -> (if x = y then [] else modify_inst_2 i) (* redundant move check *)
+      | _ -> modify_inst_2 i
+    in
+    let rec modify_insts b =
+      match b with
+	[] -> []
+      | hd::tl -> (modify_inst hd) @ (modify_insts tl)
+    in
+    let rec modify_blocks blocks =
+      match blocks with
+	[] -> []
+      | hd::tl -> (modify_insts hd)::(modify_blocks tl)
+    in
+    let new_func = modify_blocks middle_func in
+    current_func := new_func
   in
   let rec make_worklist () =
     (match (OperandSet.elements !initial) with
