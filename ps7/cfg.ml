@@ -1017,10 +1017,13 @@ let to_mips_op (op : operand) : Mips.operand =
   | Int(i) -> Mips.Immed(Int32.of_int i)
   | _ -> raise FatalError
 
+(* mangle function names to prevent conflicts with mips instructions *)
+let mangle x = "_sdej_" ^ x
+
 (* translate a single CFG inst into one or more Mips insts *)
 let cfgi2mipsi (i:inst) : Mips.inst list =
   match i with
-    Label lbl -> [Mips.Label ("_sdej_"^lbl)]
+    Label lbl -> [Mips.Label (mangle lbl)]
   | Move(o1,o2) -> 
       (match (o1,o2) with
       | Reg(r1), Reg(r2) -> [Mips.Add(r1,r2,Mips.Immed(0l))]
@@ -1052,7 +1055,7 @@ let cfgi2mipsi (i:inst) : Mips.inst list =
   | Load(o1,o2,i) -> [Mips.Lw((to_mips_reg o1),(to_mips_reg o2),(Int32.of_int i))]
   | Store(o1,i,o2) -> [Mips.Sw((to_mips_reg o2),(to_mips_reg o1),(Int32.of_int i))]
   | Call foo -> [Mips.Jal (to_mips_label foo)]
-  | Jump lbl -> [Mips.J ("_sdej_"^lbl)]
+  | Jump lbl -> [Mips.J (mangle lbl)]
   | If(o1,co1,o2,l1,l2) -> 
       let get_branch_inst (r1 : Mips.reg) (r2 : Mips.reg) : Mips.inst =
         (match co1 with
@@ -1108,7 +1111,7 @@ let compile_prog (prog:C.func list) : result (*Mips.inst list*) =
     | hd::tl ->
         compile_func hd @ compile_code tl
   in
-  {code=(Mips.Label "main" :: (Mips.J "_sdej_main") :: compile_code prog); data=[] }
+  {code=(Mips.Label "main" :: (Mips.J (mangle "main")) :: compile_code prog); data=[] }
 
 let result2string (res : result) : string =
   let code = res.code in
