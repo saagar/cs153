@@ -1,0 +1,22 @@
+f(x, y) {
+  if (x > y) {
+    return 15;
+  }
+  else {
+    return x + y;
+  }
+}
+
+main() {
+  let a = 5;
+  let k = 2;
+  let x = k + 7;
+  {
+    a = f(x, k);
+    {
+      let b = x;
+
+      return b;
+    }
+  }
+}
