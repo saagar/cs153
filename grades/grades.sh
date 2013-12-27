@@ -23,16 +23,18 @@ function runall {
   # get the grades and the parts so we can track each pset
   text=`grep "Part" ps*.grade`
   # store into temp file. such noob. we will output it all at the end
-  echo "$text" > $FILE
+  echo "" > $FILE # this overwrites the entire file, plus puts a newline...
+  echo "===== GRADE REPORT =====" >> $FILE
+  echo "$text" >> $FILE
   echo "" >> $FILE
-  echo "TOTAL POINTS" >> $FILE
+  echo "TOTAL POINTS (Weighted 80%)" >> $FILE
   # output the numbers.
   echo "$num/$den" >> $FILE
   `rm numbers.txt top.txt bot.txt`
   cat $FILE
   # use bc to calculate float division, then use printf to limit precision
   printf "%.2f %%\n" $(bc -l <<< $num/$den*100)
-  
+  echo "" 
 }
 
 runall

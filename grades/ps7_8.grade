@@ -1,0 +1,129 @@
+Part 1 (PS7): 14/15 Points
+Part 2 (PS8): 9.5/10 Points
+
+Comments:
+---------
+=====================================================================
+= OVERALL GRADE
+=====================================================================
+
+PS7
+---
+
+Total: 14 / 15 points
+
+Data-flow framework: 5 / 5
+Basic liveness for variables: 3 / 3
+Liveness for registers: 3 / 4
+Interference graph constructions: 3 / 3
+Misc. deductions (up to 4 points): -0 points
+
+PS8
+---
+
+Total: 9.5 / 10 points
+
+Basic allocation: 4 / 4
+Spilling: 2 / 2
+Coalescing, freezing: 1 / 1 
+MIPS lowering: 3 / 3 
+Misc. deductions (up to 4 points): -0.5 points
+
+=====================================================================
+= FUNCTIONAL / END-TO-END TESTS
+=====================================================================
+
+main() {
+  let x = 41;
+  let y = 1;
+  let z = x + y;
+  printInt(z);
+}
+
+RESULT: PASS 
+
+----------------------------------------------------
+
+main() {
+  let a = 1;
+  let b = 2;
+  ...
+  let z = 26;
+  let result = a + b + ... + z - 309;
+  printInt(result);
+}
+
+RESULT: PASS 
+
+----------------------------------------------------
+
+f(x, y) {
+  printInt(x);
+  printInt(y);
+  return x + y;
+}
+main() {
+  let a = 20;
+  let b = 1;
+  let result = f(a, b) + f(b, a);
+  printInt(result); 
+
+}
+
+RESULT: PASS 
+
+----------------------------------------------------
+
+f() {
+  return 5;
+}
+g(x) {
+  return f() + x;
+}
+main() {
+  let a = 5;
+  let result = g(10);
+  let z = result + a + 22;
+  printInt(z);
+}
+
+RESULT: FAIL
+
+Got back 47 (instead of 42)
+
+----------------------------------------------------
+
+f_1(a,b,c,d,e,f) {
+  return a + b + c + d + e + f;
+}
+main() {
+  let result = f_1(1,2,3,4,5,6) + 21;
+  printInt(result);
+}
+
+RESULT: PASS
+
+----------------------------------------------------
+
+f_1(a,b,c,d,e,f) {
+  let g = f + 1;
+  return a + b + c + d + e + g;
+}
+f_2(a,b,c,d,e,f) {
+  return f_1(a,b,c,d,e,f) + 1;
+}
+main() {
+  let result = f_2(1,2,3,4,5,6) + 19;
+  printInt(result);
+}
+
+RESULT: PASS
+
+=====================================================================
+= CODE COMMENTS
+=====================================================================
+- "Call uses the argument registers according to Lucas"
+It also uses other things, like all the caller-save registers :-)
+- There was a minor bug in one of the tests. It looks like it has to
+do with liveness but I had trouble nailing it down --> 0.5 deduction
+- Overall really nice job!
